@@ -1,0 +1,22 @@
+-- Seed data for letters table
+INSERT INTO letters (customer_id, no_surat, jenis_surat, tanggal_surat, file_path, status) VALUES
+(1, 'SUR-001/2026-02', 'penyegelan', '2026-02-15', '/output/Surat_Penyegelan_0611000001.pdf', 'sent'),
+(2, 'SUR-002/2026-02', 'penyegelan', '2026-02-15', '/output/Surat_Penyegelan_0611000002.pdf', 'sent'),
+(3, 'SUR-003/2026-02', 'peringatan', '2026-02-14', '/output/Surat_Peringatan_0611000003.pdf', 'sent'),
+(4, 'SUR-004/2026-02', 'penyegelan', '2026-02-16', '/output/Surat_Penyegelan_0611000004.pdf', 'draft'),
+(5, 'SUR-005/2026-02', 'penyegelan', '2026-02-16', '/output/Surat_Penyegelan_0611000005.pdf', 'sent'),
+(6, 'SUR-006/2026-02', 'peringatan', '2026-02-13', '/output/Surat_Peringatan_0611000006.pdf', 'sent'),
+(7, 'SUR-007/2026-02', 'penyegelan', '2026-02-17', '/output/Surat_Penyegelan_0611000007.pdf', 'draft'),
+(8, 'SUR-008/2026-02', 'penyegelan', '2026-02-17', '/output/Surat_Penyegelan_0611000008.pdf', 'sent'),
+(9, 'SUR-009/2026-02', 'peringatan', '2026-02-12', '/output/Surat_Peringatan_0611000009.pdf', 'sent'),
+(10, 'SUR-010/2026-02', 'penyegelan', '2026-02-16', '/output/Surat_Penyegelan_0611000010.pdf', 'sent'),
+(11, 'SUR-011/2026-02', 'penyegelan', '2026-02-15', '/output/Surat_Penyegelan_0611000011.pdf', 'draft'),
+(12, 'SUR-012/2026-02', 'peringatan', '2026-02-14', '/output/Surat_Peringatan_0611000012.pdf', 'sent'),
+(13, 'SUR-013/2026-02', 'penyegelan', '2026-02-17', '/output/Surat_Penyegelan_0611000013.pdf', 'sent'),
+(14, 'SUR-014/2026-02', 'penyegelan', '2026-02-16', '/output/Surat_Penyegelan_0611000014.pdf', 'sent'),
+(15, 'SUR-015/2026-02', 'peringatan', '2026-02-13', '/output/Surat_Peringatan_0611000015.pdf', 'draft'),
+(16, 'SUR-016/2026-02', 'penyegelan', '2026-02-17', '/output/Surat_Penyegelan_0611000016.pdf', 'sent'),
+(17, 'SUR-017/2026-02', 'penyegelan', '2026-02-15', '/output/Surat_Penyegelan_0611000017.pdf', 'sent'),
+(18, 'SUR-018/2026-02', 'peringatan', '2026-02-14', '/output/Surat_Peringatan_0611000018.pdf', 'sent'),
+(19, 'SUR-019/2026-02', 'penyegelan', '2026-02-16', '/output/Surat_Penyegelan_0611000019.pdf', 'draft'),
+(20, 'SUR-020/2026-02', 'penyegelan', '2026-02-17', '/output/Surat_Penyegelan_0611000020.pdf', 'sent');
