@@ -50,7 +50,7 @@ spinner() {
     local pid=$1
     local delay=0.1
     local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
+    while ps a | awk '{print $1}' | grep -q "$pid"; do
         local temp=${spinstr#?}
         printf " ${GRAY}%c${RESET}" "$spinstr"
         local spinstr=$temp${spinstr%"$temp"}
@@ -149,8 +149,8 @@ echo
 DEPS="reportlab pandas openpyxl pillow"
 for dep in $DEPS; do
     echo -ne "${GRAY}  Installing $dep...${RESET}"
-    if python3 -m pip install -q $dep --break-system-packages 2>/dev/null || \
-       python3 -m pip install -q $dep 2>/dev/null; then
+    if python3 -m pip install -q "$dep" --break-system-packages 2>/dev/null || \
+       python3 -m pip install -q "$dep" 2>/dev/null; then
         echo -e " ${GREEN}✓${RESET}"
     else
         echo -e " ${YELLOW}⚠${RESET}"
