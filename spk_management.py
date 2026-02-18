@@ -220,8 +220,8 @@ def clear_screen():
 def print_header():
     clear_screen()
     print("\033[1;36m" + "═" * 60 + "\033[0m")
-    print("\033[1;36m║\033[0m" + " " * 18 + "\033[1;33m📧 MAILING LIST CLI\033[0m" + " " * 21 + "\033[1;36m║\033[0m")
-    print("\033[1;36m║\033[0m" + " " * 14 + "\033[90mPDF Generator & Report Tool\033[0m" + " " * 17 + "\033[1;36m║\033[0m")
+    print("\033[1;36m║\033[0m" + " " * 18 + "\033[1;33m📋 SPK MANAGEMENT\033[0m" + " " * 23 + "\033[1;36m║\033[0m")
+    print("\033[1;36m║\033[0m" + " " * 14 + "\033[90mSurat Perintah Kerja Generator\033[0m" + " " * 15 + "\033[1;36m║\033[0m")
     print("\033[1;36m" + "═" * 60 + "\033[0m")
 
 def print_menu():

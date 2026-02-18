@@ -1,6 +1,6 @@
-# CLI Mailing List PDF Generator - Perumdam Tirtatarum Karawang
+# SPK Management - Perumdam Tirtatarum Karawang
 
-Aplikasi CLI sederhana berbasis Python untuk membuat surat pemberitahuan penyegelan pelanggan secara massal dalam format PDF profesional.
+Aplikasi CLI sederhana berbasis Python untuk membuat surat perintah kerja (SPK) penyegelan dan pencabutan pelanggan secara massal dalam format PDF profesional.
 
 ## Persyaratan
 - Python 3.x
@@ -17,7 +17,7 @@ Aplikasi CLI sederhana berbasis Python untuk membuat surat pemberitahuan penyege
     - `manager_name`
 3.  Jalankan perintah berikut:
     ```bash
-    python3 mailing_list.py "PENYEGELAN & PENCABUTAN JAN 26.xlsx"
+    python3 spk_management.py "PENYEGELAN & PENCABUTAN JAN 26.xlsx"
     ```
 4.  Hasil PDF akan muncul di folder `output/` sebagai `Laporan_PENYEGELAN.pdf` dan `Laporan_PENCABUTAN.pdf`.
 

@@ -12,9 +12,9 @@ GRAY='\033[0;90m'
 
 # Script paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SOURCE_FILE="$SCRIPT_DIR/mailing_list.py"
-TARGET_LINK="/usr/local/bin/mailinglist"
-APP_NAME="Mailing List CLI"
+SOURCE_FILE="$SCRIPT_DIR/spk_management.py"
+TARGET_LINK="/usr/local/bin/spkmanagement"
+APP_NAME="SPK Management"
 APP_VERSION="1.0.0"
 
 # Helper functions
@@ -117,7 +117,7 @@ print_success "Python3 ditemukan: $PYTHON_VERSION"
 
 # Check source file
 if [ ! -f "$SOURCE_FILE" ]; then
-    print_error "mailing_list.py tidak ditemukan di: $SCRIPT_DIR"
+    print_error "spk_management.py tidak ditemukan di: $SCRIPT_DIR"
     exit 1
 fi
 print_success "Source file ditemukan"
@@ -184,15 +184,15 @@ fi
 echo
 print_step "Verifikasi instalasi..."
 
-if command -v mailinglist &> /dev/null; then
-    print_success "Command 'mailinglist' tersedia di PATH"
+if command -v spkmanagement &> /dev/null; then
+    print_success "Command 'spkmanagement' tersedia di PATH"
     
     # Test import Python modules
     echo -ne "${GRAY}  Testing module imports...${RESET}"
     if python3 "$SOURCE_FILE" --help &> /dev/null || python3 -c "
 import sys
 sys.path.insert(0, '$SCRIPT_DIR')
-from mailing_list import interactive_mode
+from spk_management import interactive_mode
 " 2>/dev/null; then
         echo -e " ${GREEN}✓${RESET}"
         print_success "Module imports berfungsi"
@@ -201,7 +201,7 @@ from mailing_list import interactive_mode
         print_warning "Beberapa module mungkin belum terinstall dengan sempurna"
     fi
 else
-    print_error "Command 'mailinglist' tidak ditemukan di PATH"
+    print_error "Command 'spkmanagement' tidak ditemukan di PATH"
     exit 1
 fi
 
@@ -237,11 +237,11 @@ print_box_line ""
 echo -e "${CYAN}╠$(printf '═%.0s' $(seq 1 $BOX_WIDTH))╣${RESET}"
 print_box_line "Jalankan dengan:"
 print_box_line ""
-printf "${CYAN}║${RESET}%20s${BOLD}mailinglist${RESET}%19s${CYAN}║${RESET}\n" "" ""
+printf "${CYAN}║${RESET}%20s${BOLD}spkmanagement${RESET}%17s${CYAN}║${RESET}\n" "" ""
 print_box_line ""
 print_box_line "atau dengan file:"
 print_box_line ""
-printf "${CYAN}║${RESET}%14s${BOLD}mailinglist file.xlsx${RESET}%14s${CYAN}║${RESET}\n" "" ""
+printf "${CYAN}║${RESET}%14s${BOLD}spkmanagement file.xlsx${RESET}%12s${CYAN}║${RESET}\n" "" ""
 echo -e "${CYAN}╠$(printf '═%.0s' $(seq 1 $BOX_WIDTH))╣${RESET}"
 printf "${CYAN}║${RESET}  Uninstall: ./install.sh --uninstall%12s${CYAN}║${RESET}\n" ""
 echo -e "${CYAN}╚$(printf '═%.0s' $(seq 1 $BOX_WIDTH))╝${RESET}"
