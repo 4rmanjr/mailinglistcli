@@ -1,11 +1,48 @@
+#!/usr/bin/env python3
 import csv
 import os
 import sys
 from reportlab.lib.pagesizes import A4, landscape
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import cm
+from reportlab.lib.utils import ImageReader
+from PIL import Image
 
-def draw_spk(c, data, x_offset, width_half, height):
+LOGO_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "logo", "images.png")
+DEFAULT_CABANG = "Kotabaru"
+DEFAULT_MANAGER = "Endang Komara"
+
+_logo_cache = None
+
+def get_logo_reader():
+    global _logo_cache
+    if _logo_cache is not None:
+        return _logo_cache
+    if os.path.exists(LOGO_PATH):
+        try:
+            img = Image.open(LOGO_PATH)
+            if img.mode == 'P':
+                img = img.convert('RGBA')
+            _logo_cache = ImageReader(img)
+            return _logo_cache
+        except Exception:
+            pass
+    return None
+
+# Try to import pandas for Excel support
+try:
+    import pandas as pd
+    # Fix for 'extLst' error in openpyxl
+    from openpyxl.styles.fills import PatternFill
+    original_init = PatternFill.__init__
+    def patched_init(self, *args, **kwargs):
+        kwargs.pop('extLst', None)
+        return original_init(self, *args, **kwargs)
+    PatternFill.__init__ = patched_init
+except ImportError:
+    pd = None
+
+def draw_spk(c, data, x_offset, width_half, height, spk_type="PENYEGELAN"):
     margin = 1.2 * cm
     line_y = height - 3.5 * cm
     
@@ -17,46 +54,46 @@ def draw_spk(c, data, x_offset, width_half, height):
     c.setFont("Helvetica", 9)
     c.drawCentredString(x_offset + width_half/2 + 1*cm, height - 2.5*cm, "Jl. Surotokunto No.205 Karawang Timur")
     
-    # Placeholder for Logo (Box on the left of header)
-    c.rect(x_offset + margin, height - 2.8*cm, 1.5*cm, 1.5*cm)
-    c.setFont("Helvetica-Bold", 6)
-    c.drawCentredString(x_offset + margin + 0.75*cm, height - 2.2*cm, "LOGO")
-    c.drawCentredString(x_offset + margin + 0.75*cm, height - 2.5*cm, "TIRTA TARUM")
-
+    # Logo
+    logo = get_logo_reader()
+    if logo:
+        c.drawImage(logo, x_offset + margin, height - 3.2*cm, width=2*cm, height=2*cm, preserveAspectRatio=True, mask='auto')
+    
     # Thick Line
     c.setLineWidth(1.5)
     c.line(x_offset + margin, line_y, x_offset + width_half - margin, line_y)
 
     # --- Title & Nomor ---
     c.setFont("Helvetica-Bold", 10)
-    c.drawCentredString(x_offset + width_half/2, line_y - 1*cm, "SURAT PERINTAH KERJA PENYEGELAN")
+    title_text = f"SURAT PERINTAH KERJA {spk_type.upper()}"
+    c.drawCentredString(x_offset + width_half/2, line_y - 1*cm, title_text)
     c.setFont("Helvetica", 10)
     c.drawCentredString(x_offset + width_half/2, line_y - 1.5*cm, "Nomor : …../…../SPK/2026")
 
     # --- Sender/Recipient ---
     c.setFont("Helvetica", 10)
     curr_y = line_y - 2.5*cm
-    c.drawString(x_offset + margin, curr_y, f"Dari           : Manager {data['cabang']}")
+    c.drawString(x_offset + margin, curr_y, f"Dari           : Manager {data.get('cabang', '')}")
     curr_y -= 0.5*cm
     c.drawString(x_offset + margin, curr_y, "Untuk        : Distribusi")
     
     curr_y -= 1*cm
-    c.drawString(x_offset + margin, curr_y, "Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan")
+    c.drawString(x_offset + margin, curr_y, f"Untuk melaksanakan pekerjaan {spk_type.upper()} sambungan pelanggan")
     curr_y -= 0.45*cm
     c.drawString(x_offset + margin, curr_y, "sebagaimana data dibawah ini")
 
     # --- Data Pelanggan ---
     curr_y -= 1*cm
-    c.drawString(x_offset + margin + 1*cm, curr_y, f"No pelanggan  : {data['no_pelanggan']}")
+    c.drawString(x_offset + margin + 1*cm, curr_y, f"No pelanggan  : {data.get('no_pelanggan', '')}")
     curr_y -= 0.5*cm
-    c.drawString(x_offset + margin + 1*cm, curr_y, f"Nama               : {data['nama']}")
+    c.drawString(x_offset + margin + 1*cm, curr_y, f"Nama               : {data.get('nama', '')}")
     
     curr_y -= 1*cm
     c.drawString(x_offset + margin + 1*cm, curr_y, "Rincian tunggakan air / Non air")
     curr_y -= 0.8*cm
-    c.drawString(x_offset + margin + 1*cm, curr_y, f"Total Tunggakan      : {data['total_tunggakan_bulan']} Bulan")
+    c.drawString(x_offset + margin + 1*cm, curr_y, f"Total Tunggakan      : {data.get('total_tunggakan_bulan', '')} Bulan")
     curr_y -= 0.5*cm
-    c.drawString(x_offset + margin + 1*cm, curr_y, f"Total tagihan             : Rp.{data['total_tagihan']}")
+    c.drawString(x_offset + margin + 1*cm, curr_y, f"Total tagihan             : Rp.{data.get('total_tagihan', '')}")
 
     curr_y -= 1.2*cm
     c.drawString(x_offset + margin, curr_y, "Demikian untuk dilaksanakan dengan penuh tanggung jawab dan dengan semestinya")
@@ -64,12 +101,12 @@ def draw_spk(c, data, x_offset, width_half, height):
     # --- Signatures ---
     curr_y -= 1.5*cm
     c.drawCentredString(x_offset + margin + 3*cm, curr_y, "Tanda tangan Pelanggan")
-    c.drawCentredString(x_offset + width_half - margin - 3*cm, curr_y, f"Manager Cabang {data['cabang']}")
+    c.drawCentredString(x_offset + width_half - margin - 3*cm, curr_y, f"Manager Cabang {data.get('cabang', '')}")
     
     curr_y -= 2*cm
     c.drawCentredString(x_offset + margin + 3*cm, curr_y, "(…………………………..)")
     c.setFont("Helvetica-Bold", 10)
-    c.drawCentredString(x_offset + width_half - margin - 3*cm, curr_y, data['manager_name'])
+    c.drawCentredString(x_offset + width_half - margin - 3*cm, curr_y, data.get('manager_name', ''))
 
     # --- Technical Data (Bottom) ---
     c.setFont("Helvetica", 9)
@@ -83,11 +120,13 @@ def draw_spk(c, data, x_offset, width_half, height):
     c.drawString(x_offset + margin + 3.5*cm, tech_y, ":")
     
     tech_y -= 0.45*cm
-    c.drawString(x_offset + margin, tech_y, "Stand Meter Segel")
+    stand_label = "Stand Meter Segel" if "SEGEL" in spk_type.upper() else "Stand Meter Cabut"
+    c.drawString(x_offset + margin, tech_y, stand_label)
     c.drawString(x_offset + margin + 3.5*cm, tech_y, ":")
     
     tech_y -= 0.45*cm
-    c.drawString(x_offset + margin, tech_y, "No Segel")
+    segel_cabut_label = "No Segel" if "SEGEL" in spk_type.upper() else "No Body"
+    c.drawString(x_offset + margin, tech_y, segel_cabut_label)
     c.drawString(x_offset + margin + 3.5*cm, tech_y, ":")
     
     tech_y -= 0.45*cm
@@ -95,133 +134,147 @@ def draw_spk(c, data, x_offset, width_half, height):
     c.drawString(x_offset + margin + 3.5*cm, tech_y, ":")
     c.drawRightString(x_offset + width_half - margin, tech_y - 0.5*cm, "(...................................)")
 
-def create_pdf(data, output_path):
-    c = canvas.Canvas(output_path, pagesize=landscape(A4))
+def add_customer_page(c, data, spk_type="PENYEGELAN"):
     width, height = landscape(A4)
     width_half = width / 2
-
-    # Draw Left Side
-    draw_spk(c, data, 0, width_half, height)
-    
-    # Vertical Divider Line
+    draw_spk(c, data, 0, width_half, height, spk_type)
     c.setDash(3, 3)
     c.setLineWidth(0.5)
     c.line(width_half, 0.5*cm, width_half, height - 0.5*cm)
     c.setDash(1, 0)
-    
-    # Draw Right Side
-    draw_spk(c, data, width_half, width_half, height)
+    draw_spk(c, data, width_half, width_half, height, spk_type)
+    c.showPage()
 
+def generate_grouped_pdf(data_list, output_path, spk_type):
+    if not data_list:
+        return False
+    c = canvas.Canvas(output_path, pagesize=landscape(A4))
+    for row in data_list:
+        if str(row.get('no_pelanggan', '')).strip():
+            add_customer_page(c, row, spk_type)
     c.save()
+    return True
 
-
-
-def load_data(csv_file):
-    data = []
-    try:
-        with open(csv_file, mode='r', encoding='utf-8') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                data.append(row)
-    except FileNotFoundError:
-        print(f"Error: File '{csv_file}' not found.")
-    return data
-
-def save_data(csv_file, data):
-    if not data:
-        return
-    fieldnames = data[0].keys()
-    with open(csv_file, mode='w', encoding='utf-8', newline='') as file:
-        writer = csv.DictWriter(file, fieldnames=fieldnames)
-        writer.writeheader()
-        writer.writerows(data)
-
-def generate_all(data, output_dir):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+def normalize_row(row, spk_type):
+    normalized = {}
+    cols = {k.upper().strip(): v for k, v in row.items()}
     
-    count = 0
-    for row in data:
-        filename = f"Surat_Penyegelan_{row['no_pelanggan']}.pdf"
-        output_path = os.path.join(output_dir, filename)
-        create_pdf(row, output_path)
-        print(f"Generated: {output_path}")
-        count += 1
-    return count
+    def format_no_pelanggan(val):
+        if pd and pd.isna(val):
+            return ''
+        if val is None or str(val).strip() == '':
+            return ''
+        s = str(val).strip()
+        if s.isdigit() and not s.startswith('0'):
+            return '0' + s
+        return s
+    
+    if 'PENYEGELAN' in spk_type.upper():
+        normalized['no_pelanggan'] = format_no_pelanggan(cols.get('NOMOR PELANGGAN', cols.get('NO PELANGGAN', '')))
+        normalized['nama'] = cols.get('NAMA', '')
+        normalized['total_tunggakan_bulan'] = cols.get('JUMLAH BLN', cols.get('JUMLAH BULAN', ''))
+        normalized['total_tagihan'] = cols.get('TOTAL REK', cols.get('TOTAL TAGIHAN', ''))
+    else:
+        normalized['no_pelanggan'] = format_no_pelanggan(cols.get('NO SAMB', cols.get('NO PELANGGAN', '')))
+        normalized['nama'] = cols.get('NAMA', '')
+        normalized['total_tunggakan_bulan'] = cols.get('TOTAL TUNGGAKAN', '')
+        normalized['total_tagihan'] = cols.get('JUMLAH TUNGGAKAN (RP)', cols.get('TOTAL TAGIHAN', ''))
+    
+    normalized['cabang'] = cols.get('CABANG', '') or DEFAULT_CABANG
+    normalized['manager_name'] = cols.get('MANAGER', '') or DEFAULT_MANAGER
+    
+    for k, v in normalized.items():
+        if k == 'no_pelanggan':
+            continue
+        if pd and pd.isna(v):
+            normalized[k] = ''
+        elif v is None:
+            normalized[k] = ''
+        else:
+            normalized[k] = str(v)
+    
+    return normalized
+
+def load_excel_data(excel_file):
+    if pd is None:
+        print("Error: pandas and openpyxl are required.")
+        return None
+    try:
+        all_data = {}
+        with pd.ExcelFile(excel_file, engine='openpyxl') as xls:
+            for sheet_name in xls.sheet_names:
+                df = pd.read_excel(xls, sheet_name=sheet_name)
+                df.columns = [str(c).strip() for c in df.columns]
+                df = df.fillna('')
+                records = [normalize_row(row, sheet_name) for row in df.to_dict('records')]
+                all_data[sheet_name] = records
+        return all_data
+    except Exception as e:
+        print(f"Error loading Excel: {e}")
+        print("\nTips: Jika error berlanjut, buka file Excel tersebut, lalu 'Save As' dengan nama baru.")
+        return None
 
 def interactive_mode():
     csv_file = "data_pelanggan.csv"
     output_dir = "output"
-    data = load_data(csv_file)
     
+    # Load initial data from CSV if exists
+    data = []
+    if os.path.exists(csv_file):
+        with open(csv_file, mode='r', encoding='utf-8') as f:
+            data = list(csv.DictReader(f))
+
     while True:
         print("\n--- Mailing List Interactive Mode ---")
-        print("1. Lihat Daftar Pelanggan")
-        print("2. Tambah Pelanggan Baru")
-        print("3. Cetak PDF Semua Pelanggan")
-        print("4. Cetak PDF Per Pelanggan")
-        print("5. Simpan Perubahan ke CSV")
+        print("1. Lihat Daftar Pelanggan (dari CSV)")
+        print("2. Cetak Laporan dari Excel")
+        print("3. Cetak Laporan dari CSV")
         print("q. Keluar")
         
-        choice = input("\nPilih menu (1-5/q): ").strip().lower()
-        
+        choice = input("\nPilih menu: ").strip().lower()
         if choice == '1':
-            if not data:
-                print("Data kosong.")
-            else:
-                print(f"{'No Pelanggan':<15} | {'Nama':<25} | {'Cabang':<15}")
-                print("-" * 60)
-                for i, row in enumerate(data):
-                    print(f"{row['no_pelanggan']:<15} | {row['nama']:<25} | {row['cabang']:<15}")
-        
+            for row in data:
+                print(f"{row.get('no_pelanggan')} | {row.get('nama')}")
         elif choice == '2':
-            new_row = {}
-            new_row['no_pelanggan'] = input("No Pelanggan: ")
-            new_row['nama'] = input("Nama: ")
-            new_row['alamat'] = input("Alamat: ")
-            new_row['tanggal_penindakan'] = input("Tanggal Penindakan (YYYY-MM-DD): ")
-            new_row['alasan'] = input("Alasan: ")
-            new_row['total_tunggakan_bulan'] = input("Total Tunggakan (Bulan): ")
-            new_row['total_tagihan'] = input("Total Tagihan (Rp): ")
-            new_row['manager_name'] = input("Nama Manager: ")
-            new_row['cabang'] = input("Cabang: ")
-            data.append(new_row)
-            print("Pelanggan ditambahkan (jangan lupa simpan ke CSV).")
+            prompt = "Masukkan atau seret (drag & drop) file Excel ke sini\n(Default: PENYEGELAN & PENCABUTAN JAN 26.xlsx): "
+            excel_file = input(prompt).strip().strip("'\"") or "PENYEGELAN & PENCABUTAN JAN 26.xlsx"
             
-        elif choice == '3':
-            count = generate_all(data, output_dir)
-            print(f"\nBerhasil mencetak {count} PDF.")
-            
-        elif choice == '4':
-            no_pel = input("Masukkan No Pelanggan yang ingin dicetak: ")
-            target = next((item for item in data if item["no_pelanggan"] == no_pel), None)
-            if target:
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
-                filename = f"Surat_Penyegelan_{target['no_pelanggan']}.pdf"
-                output_path = os.path.join(output_dir, filename)
-                create_pdf(target, output_path)
-                print(f"Generated: {output_path}")
+            if os.path.exists(excel_file):
+                data_dict = load_excel_data(excel_file)
+                if data_dict:
+                    if not os.path.exists(output_dir): os.makedirs(output_dir)
+                    for sheet, rows in data_dict.items():
+                        path = os.path.join(output_dir, f"SPK_{sheet}.pdf")
+                        generate_grouped_pdf(rows, path, sheet)
+                        print(f"Berhasil: {path}")
             else:
-                print("Pelanggan tidak ditemukan.")
-                
-        elif choice == '5':
-            save_data(csv_file, data)
-            print(f"Data disimpan ke {csv_file}")
-            
+                print("File tidak ditemukan.")
+        elif choice == '3':
+            if data:
+                if not os.path.exists(output_dir): os.makedirs(output_dir)
+                path = os.path.join(output_dir, "SPK_PENYEGELAN.pdf")
+                generate_grouped_pdf(data, path, "PENYEGELAN")
+                print(f"Berhasil: {path}")
+            else:
+                print("Data CSV kosong.")
         elif choice == 'q':
             break
-        else:
-            print("Pilihan tidak valid.")
 
 def main():
+    output_dir = "output"
     if len(sys.argv) > 1:
-        csv_file = sys.argv[1]
-        output_dir = "output"
-        data = load_data(csv_file)
-        if data:
-            count = generate_all(data, output_dir)
-            print(f"\nSuccessfully generated {count} PDF files in '{output_dir}/' folder.")
+        input_file = sys.argv[1]
+        if input_file.endswith('.csv'):
+            # ... process csv ...
+            pass
+        elif input_file.endswith(('.xlsx', '.xls')):
+            data_dict = load_excel_data(input_file)
+            if data_dict:
+                if not os.path.exists(output_dir): os.makedirs(output_dir)
+                for sheet, rows in data_dict.items():
+                    path = os.path.join(output_dir, f"SPK_{sheet}.pdf")
+                    generate_grouped_pdf(rows, path, sheet)
+                    print(f"Generated: {path}")
     else:
         interactive_mode()
 
