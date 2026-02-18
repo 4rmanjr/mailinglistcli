@@ -24,8 +24,11 @@ wheels/
 output/
 *.pdf
 
-# Excel test files
+# Excel files (all formats)
 *.xlsx
+*.xls
+*.xlsm
+*.csv
 
 # Node.js
 node_modules/
