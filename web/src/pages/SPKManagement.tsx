@@ -92,7 +92,6 @@ function CardSkeleton() {
 }
 
 export function SPKManagement() {
-  // State
   const [activeTab, setActiveTab] = useState<TabType>('penyegelan');
   const [penyegelanData, setPenyegelanData] = useState<Penyegelan[]>([]);
   const [pencabutanData, setPencabutanData] = useState<Pencabutan[]>([]);
@@ -107,6 +106,8 @@ export function SPKManagement() {
   const [itemsPerPage, setItemsPerPage] = useState(25);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -239,323 +240,348 @@ export function SPKManagement() {
     }
   };
 
-  // PDF Generation
-  const generateSPKPDF = (spk: SPKItem) => {
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    
-    // Helper for drawing one SPK section
-    const drawSPKSection = (xOffset: number) => {
-      const startX = xOffset + 14;
-      const endX = xOffset + 134.5;
-      const centerX = xOffset + 74.25;
-      
-      // Logo placeholder
-      doc.setDrawColor(0);
-      doc.rect(startX, 10, 18, 18);
-      doc.setFontSize(5);
-      doc.text('LOGO', startX + 9, 17, { align: 'center' });
-      doc.text('TIRTA TARUM', startX + 9, 21, { align: 'center' });
-      
-      // Header text
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('PERUSAHAAN UMUM DAERAH AIR MINUM', centerX + 10, 15, { align: 'center' });
-      doc.setFontSize(11);
-      doc.text('TIRTA TARUM KABUPATEN KARAWANG', centerX + 10, 20, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
-      
-      // Separator line
-      doc.setLineWidth(0.4);
-      doc.line(startX, 30, endX, 30);
-      
-      // Title
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('SURAT PERINTAH KERJA PENYEGELAN', centerX, 40, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Nomor: ${spk.spk_number}`, centerX, 45, { align: 'center' });
-      
-      // Labels with aligned colons
-      doc.setFontSize(9);
-      const labelX = startX;
-      const colonX = startX + 18;
-      
-      doc.text('Dari', labelX, 55);
-      doc.text(': Manager Kotabaru', colonX, 55);
-      doc.text('Untuk', labelX, 61);
-      doc.text(': Distribusi', colonX, 61);
-      
-      // Intro
-      doc.text('Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan', labelX, 72);
-      doc.text('sebagaimana data dibawah ini :', labelX, 77);
-      
-      // Data Fields
-      const dataX = startX + 15;
-      const dataColonX = startX + 45;
-      const dataY = 88;
-      const stepY = 6;
-      
-      doc.text('No pelanggan', dataX, dataY);
-      if (spk.type === 'penyegelan') {
-        const data = spk.data as Penyegelan;
-        doc.text(`: ${data['NOMOR PELANGGAN']}`, dataColonX, dataY);
-        doc.text('Nama', dataX, dataY + stepY);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
-        doc.setFont('helvetica', 'normal');
-        doc.setFont('helvetica', 'italic');
-        doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Jumlah Bulan', dataX, dataY + stepY * 3.5);
-        doc.text(`: ${data['JUMLAH BLN']} Bulan`, dataColonX, dataY + stepY * 3.5);
-        doc.text('Total Rekening', dataX, dataY + stepY * 4.5);
-        doc.text(`: ${formatCurrency(data['TOTAL REK'])}`, dataColonX, dataY + stepY * 4.5);
-        doc.text('Denda', dataX, dataY + stepY * 5.5);
-        doc.text(`: ${formatCurrency(data['DENDA'])}`, dataColonX, dataY + stepY * 5.5);
-        doc.text('Jumlah Total', dataX, dataY + stepY * 6.5);
-        doc.text(`: ${formatCurrency(data['JUMLAH'])}`, dataColonX, dataY + stepY * 6.5);
-      } else {
-        const data = spk.data as Pencabutan;
-        doc.text(`: ${data['NO SAMB']}`, dataColonX, dataY);
-        doc.text('Nama', dataX, dataY + stepY);
-        doc.setFont('helvetica', 'bold');
-        doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
-        doc.setFont('helvetica', 'normal');
-        doc.setFont('helvetica', 'italic');
-        doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Total Tunggakan', dataX, dataY + stepY * 3.5);
-        doc.text(`: ${data['TOTAL TUNGGAKAN']} Bulan`, dataColonX, dataY + stepY * 3.5);
-        doc.text('Jumlah Tunggakan', dataX, dataY + stepY * 4.5);
-        doc.text(`: ${formatCurrency(data['JUMLAH TUNGGAKAN (Rp)'])}`, dataColonX, dataY + stepY * 4.5);
-      }
-      
-      // Closing
-      doc.text('Demikian untuk dilaksanakan dengan penuh tanggung jawab', labelX, dataY + stepY * 8.5, { maxWidth: 120 });
-      
-      // Technical Details Footer
-      const techY = 182;
-      const techStepY = 4.5;
-      const techColonX = startX + 35;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('Merk Meter', startX, techY);
-      doc.text(':', techColonX, techY);
-      doc.text('No Meter', startX, techY + techStepY);
-      doc.text(':', techColonX, techY + techStepY);
-      doc.text('Stand Meter Segel', startX, techY + techStepY * 2);
-      doc.text(':', techColonX, techY + techStepY * 2);
-      doc.text('No Segel', startX, techY + techStepY * 3);
-      doc.text(':', techColonX, techY + techStepY * 3);
-      doc.text('Digit Meter', startX, techY + techStepY * 4);
-      doc.text(':', techColonX, techY + techStepY * 4);
-      
-      // Signature blocks
-      const sigY = 150;
-      const sigLineY = 172;
-      doc.setFontSize(9);
-      doc.text('Tanda tangan Pelanggan', startX + 30, sigY, { align: 'center' });
-      doc.text('(........................................)', startX + 30, sigLineY, { align: 'center' });
-      
-      doc.text('Manager Cabang Kotabaru', startX + 100, sigY, { align: 'center' });
-      doc.setFont('helvetica', 'bold');
-      doc.text('Endang Komara', startX + 100, sigLineY, { align: 'center' });
-      
-      // Petugas Signature
-      const petugasTitleY = 182;
-      const petugasLineY = 200;
-      doc.setFont('helvetica', 'normal');
-      doc.text('Tanda tangan Petugas', startX + 100, petugasTitleY, { align: 'center' });
-      doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
-    };
-    
-    // Draw vertical dotted line in the middle
-    doc.setLineWidth(0.1);
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
-    doc.setLineDashPattern([], 0);
-    
-    // Draw two SPK sections
-    drawSPKSection(0);
-    drawSPKSection(pageWidth / 2);
-    
-    // Open in new tab instead of download
-    const pdfUrl = doc.output('bloburl');
-    window.open(pdfUrl, '_blank');
-  };
+  const generateSPKPDF = async (spk: SPKItem) => {
+    setPdfError(null);
+    setGeneratingPdfId(spk.spk_number);
 
-  const exportAllToPDF = () => {
-    if (!generatedSPK || generatedSPK.length === 0) return;
-    
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const pageHeight = doc.internal.pageSize.getHeight();
-    
-    // Helper for drawing one SPK section
-    const drawSPKSection = (spk: SPKItem, xOffset: number) => {
-      const startX = xOffset + 14;
-      const endX = xOffset + 134.5;
-      const centerX = xOffset + 74.25;
+    try {
+      await new Promise(resolve => setTimeout(resolve, 0));
+
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
       
-      // Logo placeholder
-      doc.setDrawColor(0);
-      doc.rect(startX, 10, 18, 18);
-      doc.setFontSize(5);
-      doc.text('LOGO', startX + 9, 17, { align: 'center' });
-      doc.text('TIRTA TARUM', startX + 9, 21, { align: 'center' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
       
-      // Header text
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('PERUSAHAAN UMUM DAERAH AIR MINUM', centerX + 10, 15, { align: 'center' });
-      doc.setFontSize(11);
-      doc.text('TIRTA TARUM KABUPATEN KARAWANG', centerX + 10, 20, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
-      
-      // Separator line
-      doc.setLineWidth(0.4);
-      doc.line(startX, 30, endX, 30);
-      
-      // Title
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.text('SURAT PERINTAH KERJA PENYEGELAN', centerX, 40, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Nomor: ${spk.spk_number}`, centerX, 45, { align: 'center' });
-      
-      // Labels
-      doc.setFontSize(9);
-      const labelX = startX;
-      const colonX = startX + 18;
-      
-      doc.text('Dari', labelX, 55);
-      doc.text(': Manager Kotabaru', colonX, 55);
-      doc.text('Untuk', labelX, 61);
-      doc.text(': Distribusi', colonX, 61);
-      
-      // Intro
-      doc.text('Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan', labelX, 72);
-      doc.text('sebagaimana data dibawah ini :', labelX, 77);
-      
-      // Data Fields
-      const dataX = startX + 15;
-      const dataColonX = startX + 45;
-      const dataY = 88;
-      const stepY = 6;
-      
-      doc.text('No pelanggan', dataX, dataY);
-      if (spk.type === 'penyegelan') {
-        const data = spk.data as Penyegelan;
-        doc.text(`: ${data['NOMOR PELANGGAN']}`, dataColonX, dataY);
-        doc.text('Nama', dataX, dataY + stepY);
+      const drawSPKSection = (xOffset: number) => {
+        const startX = xOffset + 14;
+        const endX = xOffset + 134.5;
+        const centerX = xOffset + 74.25;
+        
+        doc.setDrawColor(0);
+        doc.rect(startX, 10, 18, 18);
+        doc.setFontSize(5);
+        doc.text('LOGO', startX + 9, 17, { align: 'center' });
+        doc.text('TIRTA TARUM', startX + 9, 21, { align: 'center' });
+        
         doc.setFont('helvetica', 'bold');
-        doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+        doc.setFontSize(9);
+        doc.text('PERUSAHAAN UMUM DAERAH AIR MINUM', centerX + 10, 15, { align: 'center' });
+        doc.setFontSize(11);
+        doc.text('TIRTA TARUM KABUPATEN KARAWANG', centerX + 10, 20, { align: 'center' });
         doc.setFont('helvetica', 'normal');
-        doc.setFont('helvetica', 'italic');
-        doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
-        doc.setFont('helvetica', 'normal');
-        doc.text('Jumlah Bulan', dataX, dataY + stepY * 3.5);
-        doc.text(`: ${data['JUMLAH BLN']} Bulan`, dataColonX, dataY + stepY * 3.5);
-        doc.text('Total Rekening', dataX, dataY + stepY * 4.5);
-        doc.text(`: ${formatCurrency(data['TOTAL REK'])}`, dataColonX, dataY + stepY * 4.5);
-        doc.text('Denda', dataX, dataY + stepY * 5.5);
-        doc.text(`: ${formatCurrency(data['DENDA'])}`, dataColonX, dataY + stepY * 5.5);
-        doc.text('Jumlah Total', dataX, dataY + stepY * 6.5);
-        doc.text(`: ${formatCurrency(data['JUMLAH'])}`, dataColonX, dataY + stepY * 6.5);
-      } else {
-        const data = spk.data as Pencabutan;
-        doc.text(`: ${data['NO SAMB']}`, dataColonX, dataY);
-        doc.text('Nama', dataX, dataY + stepY);
+        doc.setFontSize(8);
+        doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
+        
+        doc.setLineWidth(0.4);
+        doc.line(startX, 30, endX, 30);
+        
         doc.setFont('helvetica', 'bold');
-        doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+        doc.setFontSize(10);
+        const titleText = spk.type === 'penyegelan' 
+          ? 'SURAT PERINTAH KERJA PENYEGELAN' 
+          : 'SURAT PERINTAH KERJA PENCABUTAN';
+        doc.text(titleText, centerX, 40, { align: 'center' });
         doc.setFont('helvetica', 'normal');
-        doc.setFont('helvetica', 'italic');
-        doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
+        doc.text(`Nomor: ${spk.spk_number}`, centerX, 45, { align: 'center' });
+        
+        doc.setFontSize(9);
+        const labelX = startX;
+        const colonX = startX + 18;
+        
+        doc.text('Dari', labelX, 55);
+        doc.text(': Manager Kotabaru', colonX, 55);
+        doc.text('Untuk', labelX, 61);
+        doc.text(': Distribusi', colonX, 61);
+        
+        const introText = spk.type === 'penyegelan'
+          ? 'Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan'
+          : 'Untuk melaksanakan pekerjaan PENCABUTAN sambungan pelanggan';
+        doc.text(introText, labelX, 72);
+        doc.text('sebagaimana data dibawah ini :', labelX, 77);
+        
+        const dataX = startX + 15;
+        const dataColonX = startX + 45;
+        const dataY = 88;
+        const stepY = 6;
+        
+        doc.text('No pelanggan', dataX, dataY);
+        if (spk.type === 'penyegelan') {
+          const data = spk.data as Penyegelan;
+          doc.text(`: ${data['NOMOR PELANGGAN']}`, dataColonX, dataY);
+          doc.text('Nama', dataX, dataY + stepY);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.setFont('helvetica', 'normal');
+          doc.setFont('helvetica', 'italic');
+          doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Jumlah Bulan', dataX, dataY + stepY * 3.5);
+          doc.text(`: ${data['JUMLAH BLN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text('Jumlah Total', dataX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(data['JUMLAH'])}`, dataColonX, dataY + stepY * 4.5);
+        } else {
+          const data = spk.data as Pencabutan;
+          doc.text(`: ${data['NO SAMB']}`, dataColonX, dataY);
+          doc.text('Nama', dataX, dataY + stepY);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.setFont('helvetica', 'normal');
+          doc.setFont('helvetica', 'italic');
+          doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Total Tunggakan', dataX, dataY + stepY * 3.5);
+          doc.text(`: ${data['TOTAL TUNGGAKAN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text('Jumlah Tunggakan', dataX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(data['JUMLAH TUNGGAKAN (Rp)'])}`, dataColonX, dataY + stepY * 4.5);
+        }
+        
+        doc.text('Demikian untuk dilaksanakan dengan penuh tanggung jawab', labelX, dataY + stepY * 8.5, { maxWidth: 120 });
+        
+        const techY = 182;
+        const techStepY = 4.5;
+        const techColonX = startX + 35;
         doc.setFont('helvetica', 'normal');
-        doc.text('Total Tunggakan', dataX, dataY + stepY * 3.5);
-        doc.text(`: ${data['TOTAL TUNGGAKAN']} Bulan`, dataColonX, dataY + stepY * 3.5);
-        doc.text('Jumlah Tunggakan', dataX, dataY + stepY * 4.5);
-        doc.text(`: ${formatCurrency(data['JUMLAH TUNGGAKAN (Rp)'])}`, dataColonX, dataY + stepY * 4.5);
-      }
+        doc.setFontSize(8);
+        doc.text('Merk Meter', startX, techY);
+        doc.text(':', techColonX, techY);
+        doc.text('No Meter', startX, techY + techStepY);
+        doc.text(':', techColonX, techY + techStepY);
+        doc.text('Stand Meter Segel', startX, techY + techStepY * 2);
+        doc.text(':', techColonX, techY + techStepY * 2);
+        doc.text('No Segel', startX, techY + techStepY * 3);
+        doc.text(':', techColonX, techY + techStepY * 3);
+        doc.text('Digit Meter', startX, techY + techStepY * 4);
+        doc.text(':', techColonX, techY + techStepY * 4);
+        
+        const sigY = 150;
+        const sigLineY = 172;
+        doc.setFontSize(9);
+        doc.text('Tanda tangan Pelanggan', startX + 30, sigY, { align: 'center' });
+        doc.text('(........................................)', startX + 30, sigLineY, { align: 'center' });
+        
+        doc.text('Manager Cabang Kotabaru', startX + 100, sigY, { align: 'center' });
+        doc.setFont('helvetica', 'bold');
+        doc.text('Endang Komara', startX + 100, sigLineY, { align: 'center' });
+        
+        const petugasTitleY = 182;
+        const petugasLineY = 200;
+        doc.setFont('helvetica', 'normal');
+        doc.text('Tanda tangan Petugas', startX + 100, petugasTitleY, { align: 'center' });
+        doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
+      };
       
-      // Closing
-      doc.text('Demikian untuk dilaksanakan dengan penuh tanggung jawab', labelX, dataY + stepY * 8.5, { maxWidth: 120 });
-      
-      // Technical Details Footer
-      const techY = 182;
-      const techStepY = 4.5;
-      const techColonX = startX + 35;
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8);
-      doc.text('Merk Meter', startX, techY);
-      doc.text(':', techColonX, techY);
-      doc.text('No Meter', startX, techY + techStepY);
-      doc.text(':', techColonX, techY + techStepY);
-      doc.text('Stand Meter Segel', startX, techY + techStepY * 2);
-      doc.text(':', techColonX, techY + techStepY * 2);
-      doc.text('No Segel', startX, techY + techStepY * 3);
-      doc.text(':', techColonX, techY + techStepY * 3);
-      doc.text('Digit Meter', startX, techY + techStepY * 4);
-      doc.text(':', techColonX, techY + techStepY * 4);
-      
-      // Signature blocks
-      const sigY = 150;
-      const sigLineY = 172;
-      doc.setFontSize(9);
-      doc.text('Tanda tangan Pelanggan', startX + 30, sigY, { align: 'center' });
-      doc.text('(........................................)', startX + 30, sigLineY, { align: 'center' });
-      
-      doc.text('Manager Cabang Kotabaru', startX + 100, sigY, { align: 'center' });
-      doc.setFont('helvetica', 'bold');
-      doc.text('Endang Komara', startX + 100, sigLineY, { align: 'center' });
-      
-      // Petugas Signature
-      const petugasTitleY = 182;
-      const petugasLineY = 200;
-      doc.setFont('helvetica', 'normal');
-      doc.text('Tanda tangan Petugas', startX + 100, petugasTitleY, { align: 'center' });
-      doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
-    };
-    
-    // Generate pages with 2 SPK per page
-    generatedSPK.forEach((spk, index) => {
-      if (index > 0 && index % 2 === 0) {
-        doc.addPage();
-      }
-      
-      // Draw vertical dotted line in the middle
       doc.setLineWidth(0.1);
       doc.setLineDashPattern([1, 1], 0);
       doc.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
       doc.setLineDashPattern([], 0);
       
-      const position = index % 2;
-      const xOffset = position === 0 ? 0 : pageWidth / 2;
-      drawSPKSection(spk, xOffset);
-    });
-    
-    // Open in new tab
-    const pdfUrl = doc.output('bloburl');
-    window.open(pdfUrl, '_blank');
+      drawSPKSection(0);
+      drawSPKSection(pageWidth / 2);
+      
+      const pdfTitle = spk.type === 'penyegelan' 
+        ? `SPK Penyegelan - ${spk.spk_number}` 
+        : `SPK Pencabutan - ${spk.spk_number}`;
+      doc.setProperties({
+        title: pdfTitle,
+        subject: spk.type === 'penyegelan' ? 'Surat Perintah Kerja Penyegelan' : 'Surat Perintah Kerja Pencabutan',
+        author: 'Tirta Tarum',
+        creator: 'SPK Management System'
+      });
+      
+      const pdfUrl = doc.output('bloburl');
+      const newWindow = window.open(pdfUrl, '_blank');
+
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        setPdfError('Popup blocker menghalangi PDF. Mohon izinkan popup untuk situs ini.');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setPdfError('Gagal membuat PDF. Silakan coba lagi.');
+    } finally {
+      setGeneratingPdfId(null);
+    }
   };
 
-  // Helpers
+  const exportAllToPDF = async () => {
+    if (!generatedSPK || generatedSPK.length === 0) return;
+
+    setPdfError(null);
+    setGeneratingPdfId('bulk');
+    
+    try {
+      await new Promise(resolve => setTimeout(resolve, 0));
+      
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      
+      const drawSPKSection = (spk: SPKItem, xOffset: number) => {
+        const startX = xOffset + 14;
+        const endX = xOffset + 134.5;
+        const centerX = xOffset + 74.25;
+        
+        doc.setDrawColor(0);
+        doc.rect(startX, 10, 18, 18);
+        doc.setFontSize(5);
+        doc.text('LOGO', startX + 9, 17, { align: 'center' });
+        doc.text('TIRTA TARUM', startX + 9, 21, { align: 'center' });
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(9);
+        doc.text('PERUSAHAAN UMUM DAERAH AIR MINUM', centerX + 10, 15, { align: 'center' });
+        doc.setFontSize(11);
+        doc.text('TIRTA TARUM KABUPATEN KARAWANG', centerX + 10, 20, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
+        
+        doc.setLineWidth(0.4);
+        doc.line(startX, 30, endX, 30);
+        
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        const titleText = spk.type === 'penyegelan' 
+          ? 'SURAT PERINTAH KERJA PENYEGELAN' 
+          : 'SURAT PERINTAH KERJA PENCABUTAN';
+        doc.text(titleText, centerX, 40, { align: 'center' });
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Nomor: ${spk.spk_number}`, centerX, 45, { align: 'center' });
+        
+        doc.setFontSize(9);
+        const labelX = startX;
+        const colonX = startX + 18;
+        
+        doc.text('Dari', labelX, 55);
+        doc.text(': Manager Kotabaru', colonX, 55);
+        doc.text('Untuk', labelX, 61);
+        doc.text(': Distribusi', colonX, 61);
+        
+        const introText = spk.type === 'penyegelan'
+          ? 'Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan'
+          : 'Untuk melaksanakan pekerjaan PENCABUTAN sambungan pelanggan';
+        doc.text(introText, labelX, 72);
+        doc.text('sebagaimana data dibawah ini :', labelX, 77);
+        
+        const dataX = startX + 15;
+        const dataColonX = startX + 45;
+        const dataY = 88;
+        const stepY = 6;
+        
+        doc.text('No pelanggan', dataX, dataY);
+        if (spk.type === 'penyegelan') {
+          const data = spk.data as Penyegelan;
+          doc.text(`: ${data['NOMOR PELANGGAN']}`, dataColonX, dataY);
+          doc.text('Nama', dataX, dataY + stepY);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.setFont('helvetica', 'normal');
+          doc.setFont('helvetica', 'italic');
+          doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Jumlah Bulan', dataX, dataY + stepY * 3.5);
+          doc.text(`: ${data['JUMLAH BLN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text('Jumlah Total', dataX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(data['JUMLAH'])}`, dataColonX, dataY + stepY * 4.5);
+        } else {
+          const data = spk.data as Pencabutan;
+          doc.text(`: ${data['NO SAMB']}`, dataColonX, dataY);
+          doc.text('Nama', dataX, dataY + stepY);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.setFont('helvetica', 'normal');
+          doc.setFont('helvetica', 'italic');
+          doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
+          doc.setFont('helvetica', 'normal');
+          doc.text('Total Tunggakan', dataX, dataY + stepY * 3.5);
+          doc.text(`: ${data['TOTAL TUNGGAKAN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text('Jumlah Tunggakan', dataX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(data['JUMLAH TUNGGAKAN (Rp)'])}`, dataColonX, dataY + stepY * 4.5);
+        }
+        
+        doc.text('Demikian untuk dilaksanakan dengan penuh tanggung jawab', labelX, dataY + stepY * 8.5, { maxWidth: 120 });
+        
+        const techY = 182;
+        const techStepY = 4.5;
+        const techColonX = startX + 35;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(8);
+        doc.text('Merk Meter', startX, techY);
+        doc.text(':', techColonX, techY);
+        doc.text('No Meter', startX, techY + techStepY);
+        doc.text(':', techColonX, techY + techStepY);
+        doc.text('Stand Meter Segel', startX, techY + techStepY * 2);
+        doc.text(':', techColonX, techY + techStepY * 2);
+        doc.text('No Segel', startX, techY + techStepY * 3);
+        doc.text(':', techColonX, techY + techStepY * 3);
+        doc.text('Digit Meter', startX, techY + techStepY * 4);
+        doc.text(':', techColonX, techY + techStepY * 4);
+        
+        const sigY = 150;
+        const sigLineY = 172;
+        doc.setFontSize(9);
+        doc.text('Tanda tangan Pelanggan', startX + 30, sigY, { align: 'center' });
+        doc.text('(........................................)', startX + 30, sigLineY, { align: 'center' });
+        
+        doc.text('Manager Cabang Kotabaru', startX + 100, sigY, { align: 'center' });
+        doc.setFont('helvetica', 'bold');
+        doc.text('Endang Komara', startX + 100, sigLineY, { align: 'center' });
+        
+        const petugasTitleY = 182;
+        const petugasLineY = 200;
+        doc.setFont('helvetica', 'normal');
+        doc.text('Tanda tangan Petugas', startX + 100, petugasTitleY, { align: 'center' });
+        doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
+      };
+      
+      generatedSPK.forEach((spk, index) => {
+        if (index > 0 && index % 2 === 0) {
+          doc.addPage();
+        }
+        
+        doc.setLineWidth(0.1);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
+        doc.setLineDashPattern([], 0);
+        
+        const position = index % 2;
+        const xOffset = position === 0 ? 0 : pageWidth / 2;
+        drawSPKSection(spk, xOffset);
+      });
+      
+      const firstSpkType = generatedSPK[0]?.type || 'penyegelan';
+      const pdfTitle = firstSpkType === 'penyegelan' 
+        ? `SPK Penyegelan - ${generatedSPK.length} item` 
+        : `SPK Pencabutan - ${generatedSPK.length} item`;
+      doc.setProperties({
+        title: pdfTitle,
+        subject: firstSpkType === 'penyegelan' ? 'Surat Perintah Kerja Penyegelan' : 'Surat Perintah Kerja Pencabutan',
+        author: 'Tirta Tarum',
+        creator: 'SPK Management System'
+      });
+      
+      const pdfUrl = doc.output('bloburl');
+      const newWindow = window.open(pdfUrl, '_blank');
+
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        setPdfError('Popup blocker menghalangi PDF. Mohon izinkan popup untuk situs ini.');
+      }
+    } catch (error) {
+      console.error('Error generating bulk PDF:', error);
+      setPdfError('Gagal membuat PDF. Silakan coba lagi.');
+    } finally {
+      setGeneratingPdfId(null);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -1258,7 +1284,6 @@ export function SPKManagement() {
         )}
       </div>
 
-      {/* Generated SPK List */}
       {generatedSPK && generatedSPK.length > 0 && (
         <div className="card" style={{ marginTop: '1.5rem' }}>
           <div className="card-header" style={{ 
@@ -1272,21 +1297,27 @@ export function SPKManagement() {
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={exportAllToPDF}
+                disabled={generatingPdfId === 'bulk'}
                 style={{
                   padding: '0.5rem 1rem',
                   borderRadius: '0.375rem',
                   border: '1px solid var(--border-color)',
                   background: 'var(--bg-secondary)',
                   color: 'var(--text-primary)',
-                  cursor: 'pointer',
+                  cursor: generatingPdfId === 'bulk' ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  fontSize: '0.875rem'
+                  fontSize: '0.875rem',
+                  opacity: generatingPdfId === 'bulk' ? 0.6 : 1
                 }}
               >
-                <FileDown size={16} />
-                Export Semua
+                {generatingPdfId === 'bulk' ? (
+                  <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <FileDown size={16} />
+                )}
+                {generatingPdfId === 'bulk' ? 'Memproses...' : 'Export Semua'}
               </button>
               <button
                 onClick={() => setGeneratedSPK(null)}
@@ -1303,6 +1334,30 @@ export function SPKManagement() {
               </button>
             </div>
           </div>
+          
+          {pdfError && (
+            <div style={{ 
+              padding: '0.75rem 1rem', 
+              background: '#fef2f2', 
+              border: '1px solid #fecaca',
+              borderRadius: '0.5rem',
+              margin: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: '#dc2626'
+            }}>
+              <AlertCircle size={18} />
+              {pdfError}
+              <button 
+                onClick={() => setPdfError(null)}
+                style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}
+              >
+                ×
+              </button>
+            </div>
+          )}
+          
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -1342,21 +1397,28 @@ export function SPKManagement() {
                     <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                       <button
                         onClick={() => generateSPKPDF(spk)}
+                        disabled={generatingPdfId === spk.spk_number}
                         style={{
                           padding: '0.5rem',
                           borderRadius: '0.375rem',
                           border: 'none',
-                          background: 'var(--primary)',
-                          color: 'white',
-                          cursor: 'pointer',
+                          background: generatingPdfId === spk.spk_number ? 'var(--bg-secondary)' : 'var(--primary)',
+                          color: generatingPdfId === spk.spk_number ? 'var(--text-secondary)' : 'white',
+                          cursor: generatingPdfId === spk.spk_number ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           gap: '0.25rem',
                           margin: '0 auto'
                         }}
                       >
-                        <Printer size={16} />
-                        <span style={{ fontSize: '0.75rem' }}>Cetak</span>
+                        {generatingPdfId === spk.spk_number ? (
+                          <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
+                        ) : (
+                          <Printer size={16} />
+                        )}
+                        <span style={{ fontSize: '0.75rem' }}>
+                          {generatingPdfId === spk.spk_number ? 'Memproses...' : 'Cetak'}
+                        </span>
                       </button>
                     </td>
                   </tr>

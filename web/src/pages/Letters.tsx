@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, FileText, Printer, Search } from 'lucide-react';
+import { Plus, FileText, Printer, Search, Loader2, AlertCircle } from 'lucide-react';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 import { api } from '../api';
@@ -10,6 +10,8 @@ export function Letters() {
   const [letters, setLetters] = useState<Letter[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLetterIds, setSelectedLetterIds] = useState<string[]>([]);
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
 
   useEffect(() => {
     loadLetters();
@@ -149,35 +151,47 @@ export function Letters() {
     doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
   };
 
-  const generatePDF = (letter: Letter) => {
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
+  const generatePDF = async (letter: Letter) => {
+    setPdfError(null);
+    setGeneratingPdf(letter.id);
 
-    // Draw vertical dotted line in the middle
-    doc.setLineWidth(0.1);
-    doc.setLineDashPattern([1, 1], 0);
-    doc.line(148.5, 5, 148.5, 205);
-    doc.setLineDashPattern([], 0);
+    try {
+      await new Promise(resolve => setTimeout(resolve, 0));
 
-    // Sections
-    generatePDFForSection(doc, letter, 0);
-    generatePDFForSection(doc, letter, 148.5);
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-    // Set metadata title for tab display and suggested filename
-    const pdfName = `Surat_Penyegelan_${letter.nomor}`;
-    doc.setProperties({
-      title: pdfName,
-      subject: 'Surat Perintah Kerja Penyegelan',
-      author: 'Tirta Tarum',
-      creator: 'Mailing List Management System'
-    });
+      doc.setDrawColor(0);
+      doc.setLineDashPattern([1, 1], 0);
+      doc.line(148.5, 5, 148.5, 205);
+      doc.setLineDashPattern([], 0);
 
-    // Open in new tab
-    const pdfUrl = doc.output('bloburl');
-    window.open(pdfUrl, '_blank');
+      generatePDFForSection(doc, letter, 0);
+      generatePDFForSection(doc, letter, 148.5);
+
+      const pdfName = `Surat_Penyegelan_${letter.nomor}`;
+      doc.setProperties({
+        title: pdfName,
+        subject: 'Surat Perintah Kerja Penyegelan',
+        author: 'Tirta Tarum',
+        creator: 'Mailing List Management System'
+      });
+
+      const pdfUrl = doc.output('bloburl');
+      const newWindow = window.open(pdfUrl, '_blank');
+
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        setPdfError('Popup blocker menghalangi PDF. Mohon izinkan popup untuk situs ini.');
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setPdfError('Gagal membuat PDF. Silakan coba lagi.');
+    } finally {
+      setGeneratingPdf(null);
+    }
   };
 
   const filteredLetters = letters.filter(letter =>
@@ -199,43 +213,65 @@ export function Letters() {
     );
   };
 
-  const generateBulkPDF = () => {
+  const generateBulkPDF = async () => {
     const selectedLetters = letters.filter(l => selectedLetterIds.includes(l.id));
     if (selectedLetters.length === 0) return;
 
-    const doc = new jsPDF({
-      orientation: 'landscape',
-      unit: 'mm',
-      format: 'a4'
-    });
+    setPdfError(null);
+    setGeneratingPdf('bulk');
 
-    selectedLetters.forEach((letter, index) => {
-      if (index > 0) doc.addPage();
+    try {
+      await new Promise(resolve => setTimeout(resolve, 0));
 
-      // Draw vertical dotted line in the middle
-      doc.setLineWidth(0.1);
-      doc.setLineDashPattern([1, 1], 0);
-      doc.line(148.5, 5, 148.5, 205);
-      doc.setLineDashPattern([], 0);
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
 
-      generatePDFForSection(doc, letter, 0);
-      generatePDFForSection(doc, letter, 148.5);
-    });
+      selectedLetters.forEach((letter, index) => {
+        if (index > 0) doc.addPage();
 
-    const pdfName = `Bulk_Surat_Penyegelan_${new Date().getTime()}`;
-    doc.setProperties({ title: pdfName });
-    window.open(doc.output('bloburl'), '_blank');
+        doc.setLineWidth(0.1);
+        doc.setLineDashPattern([1, 1], 0);
+        doc.line(148.5, 5, 148.5, 205);
+        doc.setLineDashPattern([], 0);
+
+        generatePDFForSection(doc, letter, 0);
+        generatePDFForSection(doc, letter, 148.5);
+      });
+
+      const pdfName = `Bulk_Surat_Penyegelan_${new Date().getTime()}`;
+      doc.setProperties({ title: pdfName });
+
+      const pdfUrl = doc.output('bloburl');
+      const newWindow = window.open(pdfUrl, '_blank');
+
+      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+        setPdfError('Popup blocker menghalangi PDF. Mohon izinkan popup untuk situs ini.');
+      }
+    } catch (error) {
+      console.error('Error generating bulk PDF:', error);
+      setPdfError('Gagal membuat PDF. Silakan coba lagi.');
+    } finally {
+      setGeneratingPdf(null);
+    }
   };
 
   return (
     <div className="card">
+      <style>{`.spin { animation: spin 1s linear infinite; } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       <div className="card-header">
         <h2 className="card-title">Pengelolaan Surat</h2>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
           {selectedLetterIds.length > 0 && (
-            <button className="btn btn-secondary" onClick={generateBulkPDF}>
-              <Printer size={18} />
-              Cetak Massal ({selectedLetterIds.length})
+            <button 
+              className="btn btn-secondary" 
+              onClick={generateBulkPDF}
+              disabled={generatingPdf === 'bulk'}
+            >
+              {generatingPdf === 'bulk' ? <Loader2 size={18} className="spin" /> : <Printer size={18} />}
+              {generatingPdf === 'bulk' ? 'Membuat PDF...' : `Cetak Massal (${selectedLetterIds.length})`}
             </button>
           )}
           <button className="btn btn-primary">
@@ -244,6 +280,29 @@ export function Letters() {
           </button>
         </div>
       </div>
+
+      {pdfError && (
+        <div style={{ 
+          padding: '0.75rem 1rem', 
+          background: '#fef2f2', 
+          border: '1px solid #fecaca',
+          borderRadius: '0.5rem',
+          marginBottom: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+          color: '#dc2626'
+        }}>
+          <AlertCircle size={18} />
+          {pdfError}
+          <button 
+            onClick={() => setPdfError(null)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer' }}
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       <div style={{ marginBottom: '1rem' }}>
         <div style={{ position: 'relative', maxWidth: '300px' }}>
@@ -311,8 +370,13 @@ export function Letters() {
                         className="btn btn-secondary btn-sm"
                         title="Cetak PDF"
                         onClick={() => generatePDF(letter)}
+                        disabled={generatingPdf === letter.id}
                       >
-                        <Printer size={16} />
+                        {generatingPdf === letter.id ? (
+                          <Loader2 size={16} className="spin" />
+                        ) : (
+                          <Printer size={16} />
+                        )}
                       </button>
                       <button className="btn btn-secondary btn-sm" title="Lihat Detail">
                         <FileText size={16} />
