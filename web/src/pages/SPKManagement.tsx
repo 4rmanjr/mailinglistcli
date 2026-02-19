@@ -261,6 +261,8 @@ export function SPKManagement() {
         const endX = xOffset + 134.5;
         const centerX = xOffset + 74.25;
         
+        const sectionLabel = xOffset === 0 ? 'PELANGGAN' : 'ARSIP';
+        
         doc.setDrawColor(0);
         doc.rect(startX, 10, 18, 18);
         doc.setFontSize(5);
@@ -275,6 +277,11 @@ export function SPKManagement() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
+        
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(sectionLabel, centerX + 10, 28, { align: 'center' });
+        doc.setTextColor(0);
         
         doc.setLineWidth(0.4);
         doc.line(startX, 30, endX, 30);
@@ -429,6 +436,8 @@ export function SPKManagement() {
         const endX = xOffset + 134.5;
         const centerX = xOffset + 74.25;
         
+        const sectionLabel = xOffset === 0 ? 'PELANGGAN' : 'ARSIP';
+        
         doc.setDrawColor(0);
         doc.rect(startX, 10, 18, 18);
         doc.setFontSize(5);
@@ -443,6 +452,11 @@ export function SPKManagement() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
+        
+        doc.setFontSize(7);
+        doc.setTextColor(150);
+        doc.text(sectionLabel, centerX + 10, 28, { align: 'center' });
+        doc.setTextColor(0);
         
         doc.setLineWidth(0.4);
         doc.line(startX, 30, endX, 30);
@@ -543,7 +557,7 @@ export function SPKManagement() {
       };
       
       generatedSPK.forEach((spk, index) => {
-        if (index > 0 && index % 2 === 0) {
+        if (index > 0) {
           doc.addPage();
         }
         
@@ -552,9 +566,8 @@ export function SPKManagement() {
         doc.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
         doc.setLineDashPattern([], 0);
         
-        const position = index % 2;
-        const xOffset = position === 0 ? 0 : pageWidth / 2;
-        drawSPKSection(spk, xOffset);
+        drawSPKSection(spk, 0);
+        drawSPKSection(spk, pageWidth / 2);
       });
       
       const firstSpkType = generatedSPK[0]?.type || 'penyegelan';
