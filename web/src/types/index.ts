@@ -83,3 +83,35 @@ export interface GenerateSPKResponse {
   spk_list: SPKItem[];
   total: number;
 }
+
+export interface MasterCustomer {
+  No_Pel: string;
+  Nama: string;
+  Alamat: string;
+  Petugas: string;
+  Lat_Long: string;
+}
+
+export interface SPKPenyegelanInput {
+  id?: number;
+  no_pel: string;
+  nama: string;
+  alamat: string;
+  jumlah_bln: number;
+  jumlah: number;
+  ket: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface SPKPencabutanInput {
+  id?: number;
+  no_samb: string;
+  nama: string;
+  alamat: string;
+  total_tunggakan: number;
+  jumlah_tunggakan: number;
+  ket: string;
+  created_at?: string;
+  updated_at?: string;
+}

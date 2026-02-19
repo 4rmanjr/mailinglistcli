@@ -17,16 +17,20 @@ import {
   Trash2,
   FileDown,
   RefreshCw,
-  Loader2
+  Loader2,
+  Plus,
+  Database
 } from 'lucide-react';
 import { api } from '../api';
-import type { Penyegelan, Pencabutan, SPKItem } from '../types';
+import type { Penyegelan, Pencabutan, SPKItem, SPKPenyegelanInput, SPKPencabutanInput } from '../types';
 import jsPDF from 'jspdf';
 import logoImage from '../../logo/images.png';
+import { SPKInputForm } from '../components/SPKInputForm';
 
 type TabType = 'penyegelan' | 'pencabutan';
 type ViewMode = 'table' | 'cards';
 type SortOption = 'name-asc' | 'name-desc' | 'amount-high' | 'amount-low';
+type DataSource = 'existing' | 'input';
 
 const KET_OPTIONS = [
   { value: '', label: 'Semua Status' },
@@ -109,6 +113,11 @@ export function SPKManagement() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingPdfId, setGeneratingPdfId] = useState<string | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [showInputForm, setShowInputForm] = useState(false);
+  const [dataSource, setDataSource] = useState<DataSource>('existing');
+  const [inputPenyegelanData, setInputPenyegelanData] = useState<SPKPenyegelanInput[]>([]);
+  const [inputPencabutanData, setInputPencabutanData] = useState<SPKPencabutanInput[]>([]);
+  const [editingItem, setEditingItem] = useState<SPKPenyegelanInput | SPKPencabutanInput | null>(null);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -128,14 +137,37 @@ export function SPKManagement() {
     }
   }, [activeTab, searchTerm, ketFilter]);
 
+  const loadInputData = useCallback(async () => {
+    setLoading(true);
+    try {
+      if (activeTab === 'penyegelan') {
+        const data = await api.getSPKPenyegelanInput(searchTerm, ketFilter || undefined);
+        setInputPenyegelanData(data);
+      } else {
+        const data = await api.getSPKPencabutanInput(searchTerm, ketFilter || undefined);
+        setInputPencabutanData(data);
+      }
+    } catch (error) {
+      console.error('Error loading input data:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [activeTab, searchTerm, ketFilter]);
+
   useEffect(() => {
-    loadData();
+    if (dataSource === 'existing') {
+      loadData();
+    } else {
+      loadInputData();
+    }
     setCurrentPage(1);
     setSelectedItems(new Set());
-  }, [loadData]);
+  }, [loadData, loadInputData, dataSource]);
 
   // Sort and filter data
   const sortedData = useMemo(() => {
+    if (dataSource === 'input') return [] as (Penyegelan | Pencabutan)[];
+    
     const data = activeTab === 'penyegelan' ? penyegelanData : pencabutanData;
     const sorted = [...data];
     
@@ -170,14 +202,59 @@ export function SPKManagement() {
         break;
     }
     return sorted;
-  }, [activeTab, penyegelanData, pencabutanData, sortBy]);
+  }, [activeTab, penyegelanData, pencabutanData, sortBy, dataSource]);
+
+  const sortedInputData = useMemo(() => {
+    if (dataSource === 'existing') return [];
+    
+    const data = activeTab === 'penyegelan' ? inputPenyegelanData : inputPencabutanData;
+    const sorted = [...data];
+    
+    switch (sortBy) {
+      case 'name-asc':
+        sorted.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+        break;
+      case 'name-desc':
+        sorted.sort((a, b) => (b.nama || '').localeCompare(a.nama || ''));
+        break;
+      case 'amount-high':
+        sorted.sort((a, b) => {
+          const aAmount = activeTab === 'penyegelan' 
+            ? (a as SPKPenyegelanInput)['jumlah'] 
+            : (a as SPKPencabutanInput)['jumlah_tunggakan'];
+          const bAmount = activeTab === 'penyegelan' 
+            ? (b as SPKPenyegelanInput)['jumlah'] 
+            : (b as SPKPencabutanInput)['jumlah_tunggakan'];
+          return (bAmount || 0) - (aAmount || 0);
+        });
+        break;
+      case 'amount-low':
+        sorted.sort((a, b) => {
+          const aAmount = activeTab === 'penyegelan' 
+            ? (a as SPKPenyegelanInput)['jumlah'] 
+            : (a as SPKPencabutanInput)['jumlah_tunggakan'];
+          const bAmount = activeTab === 'penyegelan' 
+            ? (b as SPKPenyegelanInput)['jumlah'] 
+            : (b as SPKPencabutanInput)['jumlah_tunggakan'];
+          return (aAmount || 0) - (bAmount || 0);
+        });
+        break;
+    }
+    return sorted;
+  }, [activeTab, inputPenyegelanData, inputPencabutanData, sortBy, dataSource]);
 
   // Pagination
-  const totalPages = Math.ceil(sortedData.length / itemsPerPage);
+  const totalDataLength = dataSource === 'existing' ? sortedData.length : sortedInputData.length;
+  const totalPages = Math.ceil(totalDataLength / itemsPerPage);
   const paginatedData = useMemo(() => {
     const start = (currentPage - 1) * itemsPerPage;
     return sortedData.slice(start, start + itemsPerPage);
   }, [sortedData, currentPage, itemsPerPage]);
+
+  const paginatedInputData = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedInputData.slice(start, start + itemsPerPage);
+  }, [sortedInputData, currentPage, itemsPerPage]);
 
   // Handlers
   const handleSelectPage = () => {
@@ -709,6 +786,50 @@ export function SPKManagement() {
           <UserX size={18} />
           Pencabutan ({pencabutanData.length.toLocaleString()})
         </button>
+        
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
+          <div style={{
+            display: 'flex',
+            border: '1px solid var(--border-color)',
+            borderRadius: '0.5rem',
+            overflow: 'hidden'
+          }}>
+            <button
+              onClick={() => { setDataSource('existing'); setSelectedItems(new Set()); }}
+              style={{
+                padding: '0.75rem 1rem',
+                background: dataSource === 'existing' ? 'var(--primary)' : 'var(--bg-primary)',
+                color: dataSource === 'existing' ? 'white' : 'var(--text-primary)',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.875rem'
+              }}
+            >
+              <Database size={16} />
+              Data Lama
+            </button>
+            <button
+              onClick={() => { setDataSource('input'); setSelectedItems(new Set()); }}
+              style={{
+                padding: '0.75rem 1rem',
+                background: dataSource === 'input' ? 'var(--success)' : 'var(--bg-primary)',
+                color: dataSource === 'input' ? 'white' : 'var(--text-primary)',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.875rem'
+              }}
+            >
+              <Plus size={16} />
+              Input Baru ({activeTab === 'penyegelan' ? inputPenyegelanData.length : inputPencabutanData.length})
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Search and Filters */}
@@ -874,6 +995,26 @@ export function SPKManagement() {
 
           {/* Action Buttons */}
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            {dataSource === 'input' && (
+              <button
+                onClick={() => { setEditingItem(null); setShowInputForm(true); }}
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  background: 'var(--success)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 500,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}
+              >
+                <Plus size={18} />
+                Tambah dari Master
+              </button>
+            )}
             <button
               onClick={handleGenerateSPK}
               disabled={selectedItems.size === 0 || loading}
@@ -1083,28 +1224,28 @@ export function SPKManagement() {
           gap: '1rem'
         }}>
           <h2 className="card-title">
-            Data {activeTab === 'penyegelan' ? 'Penyegelan' : 'Pencabutan'}
+            {dataSource === 'existing' ? 'Data Lama' : 'Data Input Baru'} - {activeTab === 'penyegelan' ? 'Penyegelan' : 'Pencabutan'}
           </h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-              Halaman {currentPage} dari {totalPages} ({sortedData.length.toLocaleString()} data)
+              Halaman {currentPage} dari {totalPages} ({totalDataLength.toLocaleString()} data)
             </span>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={handleSelectPage}
-                disabled={loading}
+                disabled={loading || dataSource === 'input'}
                 style={{
                   padding: '0.5rem 0.75rem',
                   borderRadius: '0.375rem',
                   border: '1px solid var(--border-color)',
                   background: 'transparent',
                   color: 'var(--text-primary)',
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  cursor: loading || dataSource === 'input' ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.25rem',
                   fontSize: '0.75rem',
-                  opacity: loading ? 0.6 : 1
+                  opacity: loading || dataSource === 'input' ? 0.6 : 1
                 }}
               >
                 {selectedItems.size > 0 && selectedItems.size <= itemsPerPage ? <CheckSquare size={14} /> : <Square size={14} />}
@@ -1112,24 +1253,24 @@ export function SPKManagement() {
               </button>
               <button
                 onClick={handleSelectAll}
-                disabled={loading}
+                disabled={loading || dataSource === 'input'}
                 style={{
                   padding: '0.5rem 0.75rem',
                   borderRadius: '0.375rem',
-                  border: selectedItems.size === sortedData.length ? '1px solid var(--success)' : '1px solid var(--border-color)',
-                  background: selectedItems.size === sortedData.length ? 'var(--success)' : 'transparent',
-                  color: selectedItems.size === sortedData.length ? 'white' : 'var(--text-primary)',
-                  cursor: loading ? 'not-allowed' : 'pointer',
+                  border: selectedItems.size === totalDataLength ? '1px solid var(--success)' : '1px solid var(--border-color)',
+                  background: selectedItems.size === totalDataLength ? 'var(--success)' : 'transparent',
+                  color: selectedItems.size === totalDataLength ? 'white' : 'var(--text-primary)',
+                  cursor: loading || dataSource === 'input' ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.25rem',
                   fontSize: '0.75rem',
-                  fontWeight: selectedItems.size === sortedData.length ? 600 : 400,
-                  opacity: loading ? 0.6 : 1
+                  fontWeight: selectedItems.size === totalDataLength ? 600 : 400,
+                  opacity: loading || dataSource === 'input' ? 0.6 : 1
                 }}
               >
-                {selectedItems.size === sortedData.length && sortedData.length > 0 ? <CheckSquare size={14} /> : <Square size={14} />}
-                Semua Data ({sortedData.length})
+                {selectedItems.size === totalDataLength && totalDataLength > 0 ? <CheckSquare size={14} /> : <Square size={14} />}
+                Semua Data ({totalDataLength})
               </button>
             </div>
           </div>
@@ -1179,6 +1320,117 @@ export function SPKManagement() {
               {Array.from({ length: 6 }).map((_, i) => (
                 <CardSkeleton key={i} />
               ))}
+            </div>
+          )
+        ) : dataSource === 'input' ? (
+          paginatedInputData.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
+              <p>Belum ada data input. Klik tombol "Tambah dari Master" untuk menambah data.</p>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>No</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>{activeTab === 'penyegelan' ? 'No. Pelanggan' : 'No Samb'}</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}>Nama</th>
+                    {activeTab === 'penyegelan' ? (
+                      <>
+                        <th style={{ padding: '0.75rem', textAlign: 'center' }}>Bulan</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'right' }}>Jumlah (Rp)</th>
+                      </>
+                    ) : (
+                      <>
+                        <th style={{ padding: '0.75rem', textAlign: 'left' }}>Alamat</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'center' }}>Tunggakan</th>
+                        <th style={{ padding: '0.75rem', textAlign: 'right' }}>Jumlah (Rp)</th>
+                      </>
+                    )}
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Ket</th>
+                    <th style={{ padding: '0.75rem', textAlign: 'center' }}>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paginatedInputData.map((item, index) => {
+                    const ketStyle = getKetBadgeStyle(item.ket);
+                    return (
+                      <tr key={item.id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                        <td style={{ padding: '0.75rem' }}>{(currentPage - 1) * itemsPerPage + index + 1}</td>
+                        <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>
+                          {activeTab === 'penyegelan' ? (item as SPKPenyegelanInput).no_pel : (item as SPKPencabutanInput).no_samb}
+                        </td>
+                        <td style={{ padding: '0.75rem', fontWeight: 500 }}>{item.nama}</td>
+                        {activeTab === 'penyegelan' ? (
+                          <>
+                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>{(item as SPKPenyegelanInput).jumlah_bln}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatCurrency((item as SPKPenyegelanInput).jumlah)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{ padding: '0.75rem' }}>{item.alamat}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'center' }}>{(item as SPKPencabutanInput).total_tunggakan}</td>
+                            <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 600 }}>{formatCurrency((item as SPKPencabutanInput).jumlah_tunggakan)}</td>
+                          </>
+                        )}
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <span style={{
+                            padding: '0.25rem 0.5rem',
+                            borderRadius: '0.25rem',
+                            background: ketStyle.background,
+                            color: ketStyle.color,
+                            fontSize: '0.75rem',
+                            fontWeight: 500
+                          }}>
+                            {item.ket}
+                          </span>
+                        </td>
+                        <td style={{ padding: '0.75rem', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center' }}>
+                            <button
+                              onClick={() => { setEditingItem(item); setShowInputForm(true); }}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '0.25rem',
+                                border: '1px solid var(--border-color)',
+                                background: 'var(--bg-primary)',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (confirm('Hapus data ini?')) {
+                                  if (activeTab === 'penyegelan') {
+                                    await api.deleteSPKPenyegelanInput(item.id!);
+                                  } else {
+                                    await api.deleteSPKPencabutanInput(item.id!);
+                                  }
+                                  loadInputData();
+                                }
+                              }}
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                borderRadius: '0.25rem',
+                                border: '1px solid var(--danger)',
+                                background: 'transparent',
+                                color: 'var(--danger)',
+                                cursor: 'pointer',
+                                fontSize: '0.75rem'
+                              }}
+                            >
+                              Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )
         ) : paginatedData.length === 0 ? (
@@ -1391,7 +1643,7 @@ export function SPKManagement() {
         )}
 
         {/* Pagination */}
-        {!loading && paginatedData.length > 0 && (
+        {!loading && (paginatedData.length > 0 || paginatedInputData.length > 0) && (
           <div style={{ 
             display: 'flex', 
             justifyContent: 'center', 
@@ -1570,6 +1822,16 @@ export function SPKManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Input Form Modal */}
+      {showInputForm && (
+        <SPKInputForm
+          type={activeTab}
+          onClose={() => { setShowInputForm(false); setEditingItem(null); }}
+          onSave={() => loadInputData()}
+          editData={editingItem}
+        />
       )}
     </div>
   );

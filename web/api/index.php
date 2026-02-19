@@ -10,11 +10,45 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $dbPath = __DIR__ . '/../penyegelan_pencabutan.db';
+$masterDbPath = __DIR__ . '/../db/master.db';
+$spkInputDbPath = __DIR__ . '/../db/spk_input.db';
 
 try {
     $pdo = new PDO('sqlite:' . $dbPath);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    
+    $masterPdo = new PDO('sqlite:' . $masterDbPath);
+    $masterPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $masterPdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    
+    $spkInputPdo = new PDO('sqlite:' . $spkInputDbPath);
+    $spkInputPdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $spkInputPdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+    
+    $spkInputPdo->exec("CREATE TABLE IF NOT EXISTS spk_penyegelan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        no_pel TEXT NOT NULL,
+        nama TEXT,
+        alamat TEXT,
+        jumlah_bln INTEGER DEFAULT 0,
+        jumlah REAL DEFAULT 0,
+        ket TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )");
+    
+    $spkInputPdo->exec("CREATE TABLE IF NOT EXISTS spk_pencabutan (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        no_samb TEXT NOT NULL,
+        nama TEXT,
+        alamat TEXT,
+        total_tunggakan INTEGER DEFAULT 0,
+        jumlah_tunggakan REAL DEFAULT 0,
+        ket TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )");
 } catch (PDOException $e) {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => 'Database connection failed: ' . $e->getMessage()]);
@@ -198,7 +232,7 @@ switch ($endpoint) {
     case 'generate-spk':
         if ($method === 'POST') {
             $input = json_decode(file_get_contents('php://input'), true);
-            $type = $input['type'] ?? ''; // 'penyegelan' or 'pencabutan'
+            $type = $input['type'] ?? '';
             $ids = $input['ids'] ?? [];
             
             if (!in_array($type, ['penyegelan', 'pencabutan'])) {
@@ -215,7 +249,6 @@ switch ($endpoint) {
             $stmt->execute($ids);
             $data = $stmt->fetchAll();
             
-            // Generate SPK numbers
             $year = date('Y');
             $spkList = [];
             foreach ($data as $index => $item) {
@@ -229,6 +262,169 @@ switch ($endpoint) {
             }
             
             sendResponse(['spk_list' => $spkList, 'total' => count($spkList)]);
+        }
+        break;
+        
+    case 'master-customer':
+        if ($method === 'GET') {
+            $search = $_GET['search'] ?? '';
+            $noPel = $_GET['no_pel'] ?? '';
+            
+            if ($noPel) {
+                $stmt = $masterPdo->prepare("SELECT * FROM lapdatabacameter WHERE \"No_Pel\" = ?");
+                $stmt->execute([$noPel]);
+                $data = $stmt->fetch();
+                if ($data) {
+                    sendResponse($data);
+                } else {
+                    sendError('Customer not found', 404);
+                }
+            } else if ($search) {
+                $stmt = $masterPdo->prepare("SELECT * FROM lapdatabacameter WHERE \"No_Pel\" LIKE ? OR Nama LIKE ? LIMIT 50");
+                $stmt->execute(["%$search%", "%$search%"]);
+                $data = $stmt->fetchAll();
+                sendResponse($data);
+            } else {
+                $stmt = $masterPdo->query("SELECT * FROM lapdatabacameter LIMIT 100");
+                $data = $stmt->fetchAll();
+                sendResponse($data);
+            }
+        }
+        break;
+        
+    case 'spk-penyegelan':
+        if ($method === 'GET') {
+            $search = $_GET['search'] ?? '';
+            $ket = $_GET['ket'] ?? '';
+            
+            $sql = "SELECT id, no_pel, nama, alamat, jumlah_bln, jumlah, ket, created_at, updated_at FROM spk_penyegelan WHERE 1=1";
+            $params = [];
+            
+            if ($search) {
+                $sql .= " AND (no_pel LIKE ? OR nama LIKE ?)";
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+            }
+            
+            if ($ket) {
+                $sql .= " AND ket = ?";
+                $params[] = $ket;
+            }
+            
+            $sql .= " ORDER BY created_at DESC";
+            
+            $stmt = $spkInputPdo->prepare($sql);
+            $stmt->execute($params);
+            $data = $stmt->fetchAll();
+            sendResponse($data);
+        } elseif ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $stmt = $spkInputPdo->prepare("INSERT INTO spk_penyegelan (no_pel, nama, alamat, jumlah_bln, jumlah, ket) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $input['no_pel'] ?? '',
+                $input['nama'] ?? '',
+                $input['alamat'] ?? '',
+                $input['jumlah_bln'] ?? 0,
+                $input['jumlah'] ?? 0,
+                $input['ket'] ?? ''
+            ]);
+            
+            $id = $spkInputPdo->lastInsertId();
+            $stmt = $spkInputPdo->prepare("SELECT * FROM spk_penyegelan WHERE id = ?");
+            $stmt->execute([$id]);
+            $data = $stmt->fetch();
+            sendResponse($data);
+        } elseif ($method === 'PUT' && $id) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $stmt = $spkInputPdo->prepare("UPDATE spk_penyegelan SET no_pel = ?, nama = ?, alamat = ?, jumlah_bln = ?, jumlah = ?, ket = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([
+                $input['no_pel'] ?? '',
+                $input['nama'] ?? '',
+                $input['alamat'] ?? '',
+                $input['jumlah_bln'] ?? 0,
+                $input['jumlah'] ?? 0,
+                $input['ket'] ?? '',
+                $id
+            ]);
+            
+            $stmt = $spkInputPdo->prepare("SELECT * FROM spk_penyegelan WHERE id = ?");
+            $stmt->execute([$id]);
+            $data = $stmt->fetch();
+            sendResponse($data);
+        } elseif ($method === 'DELETE' && $id) {
+            $stmt = $spkInputPdo->prepare("DELETE FROM spk_penyegelan WHERE id = ?");
+            $stmt->execute([$id]);
+            sendResponse(['deleted' => true]);
+        }
+        break;
+        
+    case 'spk-pencabutan':
+        if ($method === 'GET') {
+            $search = $_GET['search'] ?? '';
+            $ket = $_GET['ket'] ?? '';
+            
+            $sql = "SELECT id, no_samb, nama, alamat, total_tunggakan, jumlah_tunggakan, ket, created_at, updated_at FROM spk_pencabutan WHERE 1=1";
+            $params = [];
+            
+            if ($search) {
+                $sql .= " AND (no_samb LIKE ? OR nama LIKE ?)";
+                $params[] = "%$search%";
+                $params[] = "%$search%";
+            }
+            
+            if ($ket) {
+                $sql .= " AND ket = ?";
+                $params[] = $ket;
+            }
+            
+            $sql .= " ORDER BY created_at DESC";
+            
+            $stmt = $spkInputPdo->prepare($sql);
+            $stmt->execute($params);
+            $data = $stmt->fetchAll();
+            sendResponse($data);
+        } elseif ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $stmt = $spkInputPdo->prepare("INSERT INTO spk_pencabutan (no_samb, nama, alamat, total_tunggakan, jumlah_tunggakan, ket) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt->execute([
+                $input['no_samb'] ?? '',
+                $input['nama'] ?? '',
+                $input['alamat'] ?? '',
+                $input['total_tunggakan'] ?? 0,
+                $input['jumlah_tunggakan'] ?? 0,
+                $input['ket'] ?? ''
+            ]);
+            
+            $id = $spkInputPdo->lastInsertId();
+            $stmt = $spkInputPdo->prepare("SELECT * FROM spk_pencabutan WHERE id = ?");
+            $stmt->execute([$id]);
+            $data = $stmt->fetch();
+            sendResponse($data);
+        } elseif ($method === 'PUT' && $id) {
+            $input = json_decode(file_get_contents('php://input'), true);
+            
+            $stmt = $spkInputPdo->prepare("UPDATE spk_pencabutan SET no_samb = ?, nama = ?, alamat = ?, total_tunggakan = ?, jumlah_tunggakan = ?, ket = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?");
+            $stmt->execute([
+                $input['no_samb'] ?? '',
+                $input['nama'] ?? '',
+                $input['alamat'] ?? '',
+                $input['total_tunggakan'] ?? 0,
+                $input['jumlah_tunggakan'] ?? 0,
+                $input['ket'] ?? '',
+                $id
+            ]);
+            
+            $stmt = $spkInputPdo->prepare("SELECT * FROM spk_pencabutan WHERE id = ?");
+            $stmt->execute([$id]);
+            $data = $stmt->fetch();
+            sendResponse($data);
+        } elseif ($method === 'DELETE' && $id) {
+            $stmt = $spkInputPdo->prepare("DELETE FROM spk_pencabutan WHERE id = ?");
+            $stmt->execute([$id]);
+            sendResponse(['deleted' => true]);
         }
         break;
         
