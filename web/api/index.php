@@ -360,6 +360,81 @@ switch ($endpoint) {
         }
         break;
         
+    case 'finalize-spk':
+        if ($method === 'POST') {
+            $input = json_decode(file_get_contents('php://input'), true);
+            $type = $input['type'] ?? '';
+            $ids = $input['ids'] ?? [];
+            
+            if (!in_array($type, ['penyegelan', 'pencabutan'])) {
+                sendError('Invalid type');
+            }
+            
+            if (empty($ids)) {
+                sendError('No IDs provided');
+            }
+            
+            try {
+                $spkInputPdo->beginTransaction();
+                $pdo->beginTransaction();
+                
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $stmt = $spkInputPdo->prepare("SELECT * FROM spk_$type WHERE id IN ($placeholders)");
+                $stmt->execute($ids);
+                $records = $stmt->fetchAll();
+                
+                foreach ($records as $record) {
+                    if ($type === 'penyegelan') {
+                        // Get next NO.
+                        $maxNo = $pdo->query("SELECT MAX(\"NO.\") as max_no FROM penyegelan")->fetch()['max_no'] ?? 0;
+                        $nextNo = $maxNo + 1;
+                        
+                        $insertStmt = $pdo->prepare("INSERT INTO penyegelan (\"NO.\", \"TANGGAL\", \"NOMOR PELANGGAN\", NAMA, \"JUMLAH BLN\", \"TOTAL REK\", DENDA, JUMLAH, KET) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                        $insertStmt->execute([
+                            $nextNo,
+                            date('Y-m-d'),
+                            $record['no_pel'],
+                            $record['nama'],
+                            $record['jumlah_bln'],
+                            $record['jumlah'], // Assuming total rek is same as jumlah for new manual input
+                            0, // Default denda 0
+                            $record['jumlah'],
+                            $record['ket']
+                        ]);
+                    } else {
+                        // Get next NO
+                        $maxNo = $pdo->query("SELECT MAX(NO) as max_no FROM pencabutan")->fetch()['max_no'] ?? 0;
+                        $nextNo = $maxNo + 1;
+                        
+                        $insertStmt = $pdo->prepare("INSERT INTO pencabutan (NO, \"NO SAMB\", NAMA, ALAMAT, \"TOTAL TUNGGAKAN\", \"JUMLAH TUNGGAKAN (Rp)\", KET) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                        $insertStmt->execute([
+                            $nextNo,
+                            $record['no_samb'],
+                            $record['nama'],
+                            $record['alamat'],
+                            $record['total_tunggakan'],
+                            $record['jumlah_tunggakan'],
+                            $record['ket']
+                        ]);
+                    }
+                }
+                
+                // Delete from input DB
+                $deleteStmt = $spkInputPdo->prepare("DELETE FROM spk_$type WHERE id IN ($placeholders)");
+                $deleteStmt->execute($ids);
+                
+                $pdo->commit();
+                $spkInputPdo->commit();
+                
+                sendResponse(['finalized' => true, 'count' => count($records)]);
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                if ($spkInputPdo->inTransaction()) $spkInputPdo->rollBack();
+                sendError('Finalization failed: ' . $e->getMessage(), 500);
+            }
+        }
+        break;
+        
     case 'spk-pencabutan':
         if ($method === 'GET') {
             $search = $_GET['search'] ?? '';

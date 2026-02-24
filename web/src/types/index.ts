@@ -74,7 +74,7 @@ export interface SPKStats {
 
 export interface SPKItem {
   spk_number: string;
-  data: Penyegelan | Pencabutan;
+  data: Penyegelan | Pencabutan | SPKPenyegelanInput | SPKPencabutanInput;
   type: 'penyegelan' | 'pencabutan';
   generated_at: string;
 }

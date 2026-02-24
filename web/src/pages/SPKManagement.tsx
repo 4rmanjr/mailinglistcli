@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback, useMemo } from 'react';
-import { 
-  Search, 
-  FilePlus, 
-  Printer, 
-  AlertCircle, 
-  UserX, 
-  CheckSquare, 
+import {
+  Search,
+  FilePlus,
+  Printer,
+  AlertCircle,
+  UserX,
+  CheckSquare,
   Square,
   Filter,
   ArrowUpDown,
@@ -167,10 +167,10 @@ export function SPKManagement() {
   // Sort and filter data
   const sortedData = useMemo(() => {
     if (dataSource === 'input') return [] as (Penyegelan | Pencabutan)[];
-    
+
     const data = activeTab === 'penyegelan' ? penyegelanData : pencabutanData;
     const sorted = [...data];
-    
+
     switch (sortBy) {
       case 'name-asc':
         sorted.sort((a, b) => a['NAMA'].localeCompare(b['NAMA']));
@@ -180,22 +180,22 @@ export function SPKManagement() {
         break;
       case 'amount-high':
         sorted.sort((a, b) => {
-          const aAmount = activeTab === 'penyegelan' 
-            ? (a as Penyegelan)['JUMLAH'] 
+          const aAmount = activeTab === 'penyegelan'
+            ? (a as Penyegelan)['JUMLAH']
             : (a as Pencabutan)['JUMLAH TUNGGAKAN (Rp)'];
-          const bAmount = activeTab === 'penyegelan' 
-            ? (b as Penyegelan)['JUMLAH'] 
+          const bAmount = activeTab === 'penyegelan'
+            ? (b as Penyegelan)['JUMLAH']
             : (b as Pencabutan)['JUMLAH TUNGGAKAN (Rp)'];
           return bAmount - aAmount;
         });
         break;
       case 'amount-low':
         sorted.sort((a, b) => {
-          const aAmount = activeTab === 'penyegelan' 
-            ? (a as Penyegelan)['JUMLAH'] 
+          const aAmount = activeTab === 'penyegelan'
+            ? (a as Penyegelan)['JUMLAH']
             : (a as Pencabutan)['JUMLAH TUNGGAKAN (Rp)'];
-          const bAmount = activeTab === 'penyegelan' 
-            ? (b as Penyegelan)['JUMLAH'] 
+          const bAmount = activeTab === 'penyegelan'
+            ? (b as Penyegelan)['JUMLAH']
             : (b as Pencabutan)['JUMLAH TUNGGAKAN (Rp)'];
           return aAmount - bAmount;
         });
@@ -206,10 +206,10 @@ export function SPKManagement() {
 
   const sortedInputData = useMemo(() => {
     if (dataSource === 'existing') return [];
-    
+
     const data = activeTab === 'penyegelan' ? inputPenyegelanData : inputPencabutanData;
     const sorted = [...data];
-    
+
     switch (sortBy) {
       case 'name-asc':
         sorted.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
@@ -219,22 +219,22 @@ export function SPKManagement() {
         break;
       case 'amount-high':
         sorted.sort((a, b) => {
-          const aAmount = activeTab === 'penyegelan' 
-            ? (a as SPKPenyegelanInput)['jumlah'] 
+          const aAmount = activeTab === 'penyegelan'
+            ? (a as SPKPenyegelanInput)['jumlah']
             : (a as SPKPencabutanInput)['jumlah_tunggakan'];
-          const bAmount = activeTab === 'penyegelan' 
-            ? (b as SPKPenyegelanInput)['jumlah'] 
+          const bAmount = activeTab === 'penyegelan'
+            ? (b as SPKPenyegelanInput)['jumlah']
             : (b as SPKPencabutanInput)['jumlah_tunggakan'];
           return (bAmount || 0) - (aAmount || 0);
         });
         break;
       case 'amount-low':
         sorted.sort((a, b) => {
-          const aAmount = activeTab === 'penyegelan' 
-            ? (a as SPKPenyegelanInput)['jumlah'] 
+          const aAmount = activeTab === 'penyegelan'
+            ? (a as SPKPenyegelanInput)['jumlah']
             : (a as SPKPencabutanInput)['jumlah_tunggakan'];
-          const bAmount = activeTab === 'penyegelan' 
-            ? (b as SPKPenyegelanInput)['jumlah'] 
+          const bAmount = activeTab === 'penyegelan'
+            ? (b as SPKPenyegelanInput)['jumlah']
             : (b as SPKPencabutanInput)['jumlah_tunggakan'];
           return (aAmount || 0) - (bAmount || 0);
         });
@@ -258,20 +258,22 @@ export function SPKManagement() {
 
   // Handlers
   const handleSelectPage = () => {
-    if (selectedItems.size === paginatedData.length) {
+    const dataToUse = dataSource === 'existing' ? paginatedData : paginatedInputData;
+    if (selectedItems.size === dataToUse.length) {
       setSelectedItems(new Set());
     } else {
       const start = (currentPage - 1) * itemsPerPage;
-      const allIds = new Set(paginatedData.map((_, index) => start + index));
+      const allIds = new Set(dataToUse.map((_, index) => start + index));
       setSelectedItems(allIds);
     }
   };
 
   const handleSelectAll = () => {
-    if (selectedItems.size === sortedData.length) {
+    const dataToUse = dataSource === 'existing' ? sortedData : sortedInputData;
+    if (selectedItems.size === dataToUse.length) {
       setSelectedItems(new Set());
     } else {
-      const allIds = new Set(sortedData.map((_, index) => index));
+      const allIds = new Set(dataToUse.map((_, index) => index));
       setSelectedItems(allIds);
     }
   };
@@ -301,11 +303,13 @@ export function SPKManagement() {
       const year = new Date().getFullYear();
       const month = String(new Date().getMonth() + 1).padStart(2, '0');
       const spkList: SPKItem[] = [];
-      
+
       const sortedIndices = Array.from(selectedItems).sort((a, b) => a - b);
-      
+
+      const dataToUse = dataSource === 'existing' ? sortedData : sortedInputData;
+
       sortedIndices.forEach((index, i) => {
-        const item = sortedData[index];
+        const item = dataToUse[index];
         if (item) {
           const spkNumber = `SPK/${month}/${year}/${String(i + 1).padStart(4, '0')}`;
           spkList.push({
@@ -316,14 +320,44 @@ export function SPKManagement() {
           });
         }
       });
-      
+
       setGeneratedSPK(spkList);
       setShowConfirmModal(false);
-      setSelectedItems(new Set());
+      // Don't clear selection if it's input source, we might need it for finalization
+      if (dataSource === 'existing') {
+        setSelectedItems(new Set());
+      }
     } catch (error) {
       console.error('Error generating SPK:', error);
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const handleFinalize = async () => {
+    if (!generatedSPK || generatedSPK.length === 0 || dataSource === 'existing') return;
+
+    if (confirm(`Apakah Anda yakin ingin melakukan finalisasi dan memindahkan ${generatedSPK.length} data ini ke Data Lama?`)) {
+      setLoading(true);
+      try {
+        const ids = generatedSPK.map(spk => {
+          const item = spk.data as (SPKPenyegelanInput | SPKPencabutanInput);
+          return item.id!;
+        });
+
+        await api.finalizeSPK(activeTab, ids);
+        alert('Data berhasil difinalisasi dan dipindahkan ke Data Lama.');
+        setGeneratedSPK(null);
+        setSelectedItems(new Set());
+        setDataSource('existing'); // Switch to existing data to show the result
+        loadData();
+        loadInputData();
+      } catch (error) {
+        console.error('Error finalizing SPK:', error);
+        alert('Gagal melakukan finalisasi data.');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -339,17 +373,17 @@ export function SPKManagement() {
         unit: 'mm',
         format: 'a4'
       });
-      
+
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      
+
       const drawSPKSection = (xOffset: number) => {
         const startX = xOffset + 14;
         const endX = xOffset + 134.5;
         const centerX = xOffset + 74.25;
-        
+
         doc.addImage(logoImage, 'PNG', startX + 1, 8, 20, 20);
-        
+
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
         doc.text('PERUSAHAAN UMUM DAERAH AIR MINUM', centerX + 10, 15, { align: 'center' });
@@ -358,72 +392,82 @@ export function SPKManagement() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
-        
+
         doc.setLineWidth(0.4);
         doc.line(startX, 30, endX, 30);
-        
+
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
-        const titleText = spk.type === 'penyegelan' 
-          ? 'SURAT PERINTAH KERJA PENYEGELAN' 
+        const titleText = spk.type === 'penyegelan'
+          ? 'SURAT PERINTAH KERJA PENYEGELAN'
           : 'SURAT PERINTAH KERJA PENCABUTAN';
         doc.text(titleText, centerX, 40, { align: 'center' });
         doc.setFont('helvetica', 'normal');
         doc.text(`Nomor: ${spk.spk_number}`, centerX, 45, { align: 'center' });
-        
+
         doc.setFontSize(9);
         const labelX = startX;
         const colonX = startX + 18;
-        
+
         doc.text('Dari', labelX, 55);
         doc.text(': Manager Kotabaru', colonX, 55);
         doc.text('Untuk', labelX, 61);
         doc.text(': Distribusi', colonX, 61);
-        
+
         const introText = spk.type === 'penyegelan'
           ? 'Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan'
           : 'Untuk melaksanakan pekerjaan PENCABUTAN sambungan pelanggan';
         doc.text(introText, labelX, 72);
         doc.text('sebagaimana data dibawah ini :', labelX, 77);
-        
+
         const dataX = startX + 15;
         const dataColonX = startX + 45;
         const dataY = 88;
         const stepY = 6;
-        
+
         doc.text('No pelanggan', dataX, dataY);
         if (spk.type === 'penyegelan') {
-          const data = spk.data as Penyegelan;
-          doc.text(`: ${data['NOMOR PELANGGAN']}`, dataColonX, dataY);
+          const data = spk.data as any;
+          const noPel = data['NOMOR PELANGGAN'] || data['no_pel'] || '';
+          const namaPel = data['NAMA'] || data['nama'] || '';
+          const jumlahBlnVal = data['JUMLAH BLN'] !== undefined ? data['JUMLAH BLN'] : (data['jumlah_bln'] || 0);
+          const jumlahVal = data['JUMLAH'] !== undefined ? data['JUMLAH'] : (data['jumlah'] || 0);
+
+          doc.text(`: ${noPel}`, dataColonX, dataY);
           doc.text('Nama', dataX, dataY + stepY);
           doc.setFont('helvetica', 'bold');
-          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.text(`: ${namaPel}`, dataColonX, dataY + stepY);
           doc.setFont('helvetica', 'normal');
           doc.setFont('helvetica', 'italic');
           doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
           doc.setFont('helvetica', 'normal');
           doc.text('Jumlah Bulan', dataX, dataY + stepY * 3.5);
-          doc.text(`: ${data['JUMLAH BLN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text(`: ${jumlahBlnVal} Bulan`, dataColonX, dataY + stepY * 3.5);
           doc.text('Jumlah Total', dataX, dataY + stepY * 4.5);
-          doc.text(`: ${formatCurrency(data['JUMLAH'])}`, dataColonX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(jumlahVal)}`, dataColonX, dataY + stepY * 4.5);
         } else {
-          const data = spk.data as Pencabutan;
-          doc.text(`: ${data['NO SAMB']}`, dataColonX, dataY);
+          const data = spk.data as any;
+          const noSamb = data['NO SAMB'] || data['no_samb'] || '';
+          const namaPel = data['NAMA'] || data['nama'] || '';
+          const totalTunggakanVal = data['TOTAL TUNGGAKAN'] !== undefined ? data['TOTAL TUNGGAKAN'] : (data['total_tunggakan'] || 0);
+          const jumlahTunggakanVal = data['JUMLAH TUNGGAKAN (Rp)'] !== undefined ? data['JUMLAH TUNGGAKAN (Rp)'] : (data['jumlah_tunggakan'] || 0);
+
+          doc.text(`: ${noSamb}`, dataColonX, dataY);
           doc.text('Nama', dataX, dataY + stepY);
           doc.setFont('helvetica', 'bold');
-          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.text(`: ${namaPel}`, dataColonX, dataY + stepY);
           doc.setFont('helvetica', 'normal');
           doc.setFont('helvetica', 'italic');
           doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
           doc.setFont('helvetica', 'normal');
           doc.text('Total Tunggakan', dataX, dataY + stepY * 3.5);
-          doc.text(`: ${data['TOTAL TUNGGAKAN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text(`: ${totalTunggakanVal} Bulan`, dataColonX, dataY + stepY * 3.5);
           doc.text('Jumlah Tunggakan', dataX, dataY + stepY * 4.5);
-          doc.text(`: ${formatCurrency(data['JUMLAH TUNGGAKAN (Rp)'])}`, dataColonX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(jumlahTunggakanVal)}`, dataColonX, dataY + stepY * 4.5);
         }
-        
+
         doc.text('Demikian untuk dilaksanakan dengan penuh tanggung jawab', labelX, dataY + stepY * 8.5, { maxWidth: 120 });
-        
+
         const techY = 182;
         const techStepY = 4.5;
         const techColonX = startX + 35;
@@ -439,34 +483,34 @@ export function SPKManagement() {
         doc.text(':', techColonX, techY + techStepY * 3);
         doc.text('Digit Meter', startX, techY + techStepY * 4);
         doc.text(':', techColonX, techY + techStepY * 4);
-        
+
         const sigY = 150;
         const sigLineY = 172;
         doc.setFontSize(9);
         doc.text('Tanda tangan Pelanggan', startX + 30, sigY, { align: 'center' });
         doc.text('(........................................)', startX + 30, sigLineY, { align: 'center' });
-        
+
         doc.text('Manager Cabang Kotabaru', startX + 100, sigY, { align: 'center' });
         doc.setFont('helvetica', 'bold');
         doc.text('Endang Komara', startX + 100, sigLineY, { align: 'center' });
-        
+
         const petugasTitleY = 182;
         const petugasLineY = 200;
         doc.setFont('helvetica', 'normal');
         doc.text('Tanda tangan Petugas', startX + 100, petugasTitleY, { align: 'center' });
         doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
       };
-      
+
       doc.setLineWidth(0.1);
       doc.setLineDashPattern([1, 1], 0);
       doc.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
       doc.setLineDashPattern([], 0);
-      
+
       drawSPKSection(0);
       drawSPKSection(pageWidth / 2);
-      
-      const pdfTitle = spk.type === 'penyegelan' 
-        ? `SPK Penyegelan - ${spk.spk_number}` 
+
+      const pdfTitle = spk.type === 'penyegelan'
+        ? `SPK Penyegelan - ${spk.spk_number}`
         : `SPK Pencabutan - ${spk.spk_number}`;
       doc.setProperties({
         title: pdfTitle,
@@ -474,7 +518,7 @@ export function SPKManagement() {
         author: 'Tirta Tarum',
         creator: 'SPK Management System'
       });
-      
+
       const pdfUrl = doc.output('bloburl');
       const newWindow = window.open(pdfUrl, '_blank');
 
@@ -494,26 +538,26 @@ export function SPKManagement() {
 
     setPdfError(null);
     setGeneratingPdfId('bulk');
-    
+
     try {
       await new Promise(resolve => setTimeout(resolve, 0));
-      
+
       const doc = new jsPDF({
         orientation: 'landscape',
         unit: 'mm',
         format: 'a4'
       });
-      
+
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
-      
+
       const drawSPKSection = (spk: SPKItem, xOffset: number) => {
         const startX = xOffset + 14;
         const endX = xOffset + 134.5;
         const centerX = xOffset + 74.25;
-        
+
         doc.addImage(logoImage, 'PNG', startX + 1, 8, 20, 20);
-        
+
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(9);
         doc.text('PERUSAHAAN UMUM DAERAH AIR MINUM', centerX + 10, 15, { align: 'center' });
@@ -522,72 +566,82 @@ export function SPKManagement() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.text('Jl. Surotokunto No.205 Karawang Timur', centerX + 10, 25, { align: 'center' });
-        
+
         doc.setLineWidth(0.4);
         doc.line(startX, 30, endX, 30);
-        
+
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(10);
-        const titleText = spk.type === 'penyegelan' 
-          ? 'SURAT PERINTAH KERJA PENYEGELAN' 
+        const titleText = spk.type === 'penyegelan'
+          ? 'SURAT PERINTAH KERJA PENYEGELAN'
           : 'SURAT PERINTAH KERJA PENCABUTAN';
         doc.text(titleText, centerX, 40, { align: 'center' });
         doc.setFont('helvetica', 'normal');
         doc.text(`Nomor: ${spk.spk_number}`, centerX, 45, { align: 'center' });
-        
+
         doc.setFontSize(9);
         const labelX = startX;
         const colonX = startX + 18;
-        
+
         doc.text('Dari', labelX, 55);
         doc.text(': Manager Kotabaru', colonX, 55);
         doc.text('Untuk', labelX, 61);
         doc.text(': Distribusi', colonX, 61);
-        
+
         const introText = spk.type === 'penyegelan'
           ? 'Untuk melaksanakan pekerjaan PENYEGELAN sambungan pelanggan'
           : 'Untuk melaksanakan pekerjaan PENCABUTAN sambungan pelanggan';
         doc.text(introText, labelX, 72);
         doc.text('sebagaimana data dibawah ini :', labelX, 77);
-        
+
         const dataX = startX + 15;
         const dataColonX = startX + 45;
         const dataY = 88;
         const stepY = 6;
-        
+
         doc.text('No pelanggan', dataX, dataY);
         if (spk.type === 'penyegelan') {
-          const data = spk.data as Penyegelan;
-          doc.text(`: ${data['NOMOR PELANGGAN']}`, dataColonX, dataY);
+          const data = spk.data as any;
+          const noPel = data['NOMOR PELANGGAN'] || data['no_pel'] || '';
+          const namaPel = data['NAMA'] || data['nama'] || '';
+          const jumlahBlnVal = data['JUMLAH BLN'] !== undefined ? data['JUMLAH BLN'] : (data['jumlah_bln'] || 0);
+          const jumlahVal = data['JUMLAH'] !== undefined ? data['JUMLAH'] : (data['jumlah'] || 0);
+
+          doc.text(`: ${noPel}`, dataColonX, dataY);
           doc.text('Nama', dataX, dataY + stepY);
           doc.setFont('helvetica', 'bold');
-          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.text(`: ${namaPel}`, dataColonX, dataY + stepY);
           doc.setFont('helvetica', 'normal');
           doc.setFont('helvetica', 'italic');
           doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
           doc.setFont('helvetica', 'normal');
           doc.text('Jumlah Bulan', dataX, dataY + stepY * 3.5);
-          doc.text(`: ${data['JUMLAH BLN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text(`: ${jumlahBlnVal} Bulan`, dataColonX, dataY + stepY * 3.5);
           doc.text('Jumlah Total', dataX, dataY + stepY * 4.5);
-          doc.text(`: ${formatCurrency(data['JUMLAH'])}`, dataColonX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(jumlahVal)}`, dataColonX, dataY + stepY * 4.5);
         } else {
-          const data = spk.data as Pencabutan;
-          doc.text(`: ${data['NO SAMB']}`, dataColonX, dataY);
+          const data = spk.data as any;
+          const noSamb = data['NO SAMB'] || data['no_samb'] || '';
+          const namaPel = data['NAMA'] || data['nama'] || '';
+          const totalTunggakanVal = data['TOTAL TUNGGAKAN'] !== undefined ? data['TOTAL TUNGGAKAN'] : (data['total_tunggakan'] || 0);
+          const jumlahTunggakanVal = data['JUMLAH TUNGGAKAN (Rp)'] !== undefined ? data['JUMLAH TUNGGAKAN (Rp)'] : (data['jumlah_tunggakan'] || 0);
+
+          doc.text(`: ${noSamb}`, dataColonX, dataY);
           doc.text('Nama', dataX, dataY + stepY);
           doc.setFont('helvetica', 'bold');
-          doc.text(`: ${data['NAMA']}`, dataColonX, dataY + stepY);
+          doc.text(`: ${namaPel}`, dataColonX, dataY + stepY);
           doc.setFont('helvetica', 'normal');
           doc.setFont('helvetica', 'italic');
           doc.text('Rincian tunggakan air / Non air', dataX, dataY + stepY * 2.5);
           doc.setFont('helvetica', 'normal');
           doc.text('Total Tunggakan', dataX, dataY + stepY * 3.5);
-          doc.text(`: ${data['TOTAL TUNGGAKAN']} Bulan`, dataColonX, dataY + stepY * 3.5);
+          doc.text(`: ${totalTunggakanVal} Bulan`, dataColonX, dataY + stepY * 3.5);
           doc.text('Jumlah Tunggakan', dataX, dataY + stepY * 4.5);
-          doc.text(`: ${formatCurrency(data['JUMLAH TUNGGAKAN (Rp)'])}`, dataColonX, dataY + stepY * 4.5);
+          doc.text(`: ${formatCurrency(jumlahTunggakanVal)}`, dataColonX, dataY + stepY * 4.5);
         }
-        
+
         doc.text('Demikian untuk dilaksanakan dengan penuh tanggung jawab', labelX, dataY + stepY * 8.5, { maxWidth: 120 });
-        
+
         const techY = 182;
         const techStepY = 4.5;
         const techColonX = startX + 35;
@@ -603,41 +657,41 @@ export function SPKManagement() {
         doc.text(':', techColonX, techY + techStepY * 3);
         doc.text('Digit Meter', startX, techY + techStepY * 4);
         doc.text(':', techColonX, techY + techStepY * 4);
-        
+
         const sigY = 150;
         const sigLineY = 172;
         doc.setFontSize(9);
         doc.text('Tanda tangan Pelanggan', startX + 30, sigY, { align: 'center' });
         doc.text('(........................................)', startX + 30, sigLineY, { align: 'center' });
-        
+
         doc.text('Manager Cabang Kotabaru', startX + 100, sigY, { align: 'center' });
         doc.setFont('helvetica', 'bold');
         doc.text('Endang Komara', startX + 100, sigLineY, { align: 'center' });
-        
+
         const petugasTitleY = 182;
         const petugasLineY = 200;
         doc.setFont('helvetica', 'normal');
         doc.text('Tanda tangan Petugas', startX + 100, petugasTitleY, { align: 'center' });
         doc.text('(........................................)', startX + 100, petugasLineY, { align: 'center' });
       };
-      
+
       generatedSPK.forEach((spk, index) => {
         if (index > 0) {
           doc.addPage();
         }
-        
+
         doc.setLineWidth(0.1);
         doc.setLineDashPattern([1, 1], 0);
         doc.line(pageWidth / 2, 5, pageWidth / 2, pageHeight - 5);
         doc.setLineDashPattern([], 0);
-        
+
         drawSPKSection(spk, 0);
         drawSPKSection(spk, pageWidth / 2);
       });
-      
+
       const firstSpkType = generatedSPK[0]?.type || 'penyegelan';
-      const pdfTitle = firstSpkType === 'penyegelan' 
-        ? `SPK Penyegelan - ${generatedSPK.length} item` 
+      const pdfTitle = firstSpkType === 'penyegelan'
+        ? `SPK Penyegelan - ${generatedSPK.length} item`
         : `SPK Pencabutan - ${generatedSPK.length} item`;
       doc.setProperties({
         title: pdfTitle,
@@ -645,7 +699,7 @@ export function SPKManagement() {
         author: 'Tirta Tarum',
         creator: 'SPK Management System'
       });
-      
+
       const pdfUrl = doc.output('bloburl');
       const newWindow = window.open(pdfUrl, '_blank');
 
@@ -670,7 +724,7 @@ export function SPKManagement() {
 
   const getKetBadgeStyle = (ket: string) => {
     const normalizedKet = ket?.toUpperCase() || '';
-    
+
     if (normalizedKet.includes('LUNAS') || normalizedKet.includes('BYR')) {
       return { background: '#22c55e', color: 'white' };
     } else if (normalizedKet.includes('CABUT')) {
@@ -739,9 +793,9 @@ export function SPKManagement() {
       {/* Tabs */}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
         <button
-          onClick={() => { 
-            setActiveTab('penyegelan'); 
-            setSelectedItems(new Set()); 
+          onClick={() => {
+            setActiveTab('penyegelan');
+            setSelectedItems(new Set());
             setGeneratedSPK(null);
             setCurrentPage(1);
           }}
@@ -763,9 +817,9 @@ export function SPKManagement() {
           Penyegelan ({penyegelanData.length.toLocaleString()})
         </button>
         <button
-          onClick={() => { 
-            setActiveTab('pencabutan'); 
-            setSelectedItems(new Set()); 
+          onClick={() => {
+            setActiveTab('pencabutan');
+            setSelectedItems(new Set());
             setGeneratedSPK(null);
             setCurrentPage(1);
           }}
@@ -786,7 +840,7 @@ export function SPKManagement() {
           <UserX size={18} />
           Pencabutan ({pencabutanData.length.toLocaleString()})
         </button>
-        
+
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '0.5rem' }}>
           <div style={{
             display: 'flex',
@@ -873,7 +927,7 @@ export function SPKManagement() {
               {loading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <RefreshCw size={18} />}
             </button>
           </div>
-          
+
           {/* Filter Row */}
           <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
             {/* KET Filter */}
@@ -930,9 +984,9 @@ export function SPKManagement() {
             </div>
 
             {/* View Mode Toggle */}
-            <div style={{ 
-              display: 'flex', 
-              border: '1px solid var(--border-color)', 
+            <div style={{
+              display: 'flex',
+              border: '1px solid var(--border-color)',
               borderRadius: '0.375rem',
               overflow: 'hidden'
             }}>
@@ -1035,7 +1089,7 @@ export function SPKManagement() {
               <FilePlus size={18} />
               Generate SPK ({selectedItems.size.toLocaleString()})
             </button>
-            
+
             {selectedItems.size > 0 && (
               <button
                 onClick={clearSelection}
@@ -1062,9 +1116,9 @@ export function SPKManagement() {
       {/* Generated SPK Section - Shown right after filter card */}
       {generatedSPK && generatedSPK.length > 0 && (
         <div className="card" style={{ marginBottom: '1rem', border: '2px solid var(--primary)' }}>
-          <div className="card-header" style={{ 
-            display: 'flex', 
-            justifyContent: 'space-between', 
+          <div className="card-header" style={{
+            display: 'flex',
+            justifyContent: 'space-between',
             alignItems: 'center',
             flexWrap: 'wrap',
             gap: '1rem',
@@ -1104,6 +1158,28 @@ export function SPKManagement() {
                 )}
                 {generatingPdfId === 'bulk' ? 'Memproses...' : 'Export Semua PDF'}
               </button>
+              {dataSource === 'input' && (
+                <button
+                  onClick={handleFinalize}
+                  disabled={loading}
+                  style={{
+                    padding: '0.5rem 1rem',
+                    borderRadius: '0.375rem',
+                    border: 'none',
+                    background: '#059669',
+                    color: 'white',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  <CheckSquare size={16} />
+                  Finalisasi & Pindahkan
+                </button>
+              )}
               <button
                 onClick={() => setGeneratedSPK(null)}
                 style={{
@@ -1119,11 +1195,11 @@ export function SPKManagement() {
               </button>
             </div>
           </div>
-          
+
           {pdfError && (
-            <div style={{ 
-              padding: '0.75rem 1rem', 
-              background: '#fef2f2', 
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: '#fef2f2',
               border: '1px solid #fecaca',
               borderRadius: '0.5rem',
               marginBottom: '1rem',
@@ -1134,7 +1210,7 @@ export function SPKManagement() {
             }}>
               <AlertCircle size={18} />
               {pdfError}
-              <button 
+              <button
                 onClick={() => setPdfError(null)}
                 style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626' }}
               >
@@ -1142,7 +1218,7 @@ export function SPKManagement() {
               </button>
             </div>
           )}
-          
+
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
@@ -1173,11 +1249,11 @@ export function SPKManagement() {
                       </span>
                     </td>
                     <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>
-                      {spk.type === 'penyegelan' 
-                        ? (spk.data as Penyegelan)['NOMOR PELANGGAN'] 
-                        : (spk.data as Pencabutan)['NO SAMB']}
+                      {spk.type === 'penyegelan'
+                        ? ((spk.data as Penyegelan)['NOMOR PELANGGAN'] || (spk.data as SPKPenyegelanInput)['no_pel'])
+                        : ((spk.data as Pencabutan)['NO SAMB'] || (spk.data as SPKPencabutanInput)['no_samb'])}
                     </td>
-                    <td style={{ padding: '0.75rem' }}>{spk.data['NAMA']}</td>
+                    <td style={{ padding: '0.75rem' }}>{(spk.data as Penyegelan)['NAMA'] || (spk.data as SPKPenyegelanInput)['nama'] || (spk.data as SPKPencabutanInput)['nama']}</td>
                     <td style={{ padding: '0.75rem' }}>{spk.generated_at}</td>
                     <td style={{ padding: '0.75rem', textAlign: 'center' }}>
                       <button
@@ -1216,9 +1292,9 @@ export function SPKManagement() {
 
       {/* Data Display */}
       <div className="card">
-        <div className="card-header" style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <div className="card-header" style={{
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '1rem'
@@ -1233,19 +1309,19 @@ export function SPKManagement() {
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button
                 onClick={handleSelectPage}
-                disabled={loading || dataSource === 'input'}
+                disabled={loading}
                 style={{
                   padding: '0.5rem 0.75rem',
                   borderRadius: '0.375rem',
                   border: '1px solid var(--border-color)',
                   background: 'transparent',
                   color: 'var(--text-primary)',
-                  cursor: loading || dataSource === 'input' ? 'not-allowed' : 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.25rem',
                   fontSize: '0.75rem',
-                  opacity: loading || dataSource === 'input' ? 0.6 : 1
+                  opacity: loading ? 0.6 : 1
                 }}
               >
                 {selectedItems.size > 0 && selectedItems.size <= itemsPerPage ? <CheckSquare size={14} /> : <Square size={14} />}
@@ -1253,20 +1329,20 @@ export function SPKManagement() {
               </button>
               <button
                 onClick={handleSelectAll}
-                disabled={loading || dataSource === 'input'}
+                disabled={loading}
                 style={{
                   padding: '0.5rem 0.75rem',
                   borderRadius: '0.375rem',
                   border: selectedItems.size === totalDataLength ? '1px solid var(--success)' : '1px solid var(--border-color)',
                   background: selectedItems.size === totalDataLength ? 'var(--success)' : 'transparent',
                   color: selectedItems.size === totalDataLength ? 'white' : 'var(--text-primary)',
-                  cursor: loading || dataSource === 'input' ? 'not-allowed' : 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.25rem',
                   fontSize: '0.75rem',
                   fontWeight: selectedItems.size === totalDataLength ? 600 : 400,
-                  opacity: loading || dataSource === 'input' ? 0.6 : 1
+                  opacity: loading ? 0.6 : 1
                 }}
               >
                 {selectedItems.size === totalDataLength && totalDataLength > 0 ? <CheckSquare size={14} /> : <Square size={14} />}
@@ -1311,9 +1387,9 @@ export function SPKManagement() {
               </table>
             </div>
           ) : (
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
               gap: '1rem',
               padding: '1rem'
             }}>
@@ -1333,6 +1409,7 @@ export function SPKManagement() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
+                    <th style={{ padding: '0.75rem', textAlign: 'left' }}></th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>No</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>{activeTab === 'penyegelan' ? 'No. Pelanggan' : 'No Samb'}</th>
                     <th style={{ padding: '0.75rem', textAlign: 'left' }}>Nama</th>
@@ -1355,8 +1432,28 @@ export function SPKManagement() {
                 <tbody>
                   {paginatedInputData.map((item, index) => {
                     const ketStyle = getKetBadgeStyle(item.ket);
+                    const actualIndex = (currentPage - 1) * itemsPerPage + index;
                     return (
-                      <tr key={item.id || index} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                      <tr
+                        key={item.id || index}
+                        style={{
+                          borderBottom: '1px solid var(--border-color)',
+                          background: selectedItems.has(actualIndex) ? 'rgba(59, 130, 246, 0.1)' : undefined
+                        }}
+                      >
+                        <td style={{ padding: '0.75rem' }}>
+                          <button
+                            onClick={() => handleSelectItem(actualIndex)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: selectedItems.has(actualIndex) ? 'var(--primary)' : 'var(--text-secondary)'
+                            }}
+                          >
+                            {selectedItems.has(actualIndex) ? <CheckSquare size={20} /> : <Square size={20} />}
+                          </button>
+                        </td>
                         <td style={{ padding: '0.75rem' }}>{(currentPage - 1) * itemsPerPage + index + 1}</td>
                         <td style={{ padding: '0.75rem', fontFamily: 'monospace' }}>
                           {activeTab === 'penyegelan' ? (item as SPKPenyegelanInput).no_pel : (item as SPKPencabutanInput).no_samb}
@@ -1470,15 +1567,15 @@ export function SPKManagement() {
               <tbody>
                 {paginatedData.map((item, index) => {
                   const actualIndex = (currentPage - 1) * itemsPerPage + index;
-                  const ketStyle = getKetBadgeStyle(activeTab === 'penyegelan' 
-                    ? (item as Penyegelan)['KET'] 
+                  const ketStyle = getKetBadgeStyle(activeTab === 'penyegelan'
+                    ? (item as Penyegelan)['KET']
                     : (item as Pencabutan)['KET']
                   );
-                  
+
                   return (
-                    <tr 
-                      key={actualIndex} 
-                      style={{ 
+                    <tr
+                      key={actualIndex}
+                      style={{
                         borderBottom: '1px solid var(--border-color)',
                         background: selectedItems.has(actualIndex) ? 'rgba(59, 130, 246, 0.1)' : undefined
                       }}
@@ -1548,21 +1645,21 @@ export function SPKManagement() {
             </table>
           </div>
         ) : (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
             gap: '1rem',
             padding: '1rem'
           }}>
             {paginatedData.map((item, index) => {
               const actualIndex = (currentPage - 1) * itemsPerPage + index;
-              const ketStyle = getKetBadgeStyle(activeTab === 'penyegelan' 
-                ? (item as Penyegelan)['KET'] 
+              const ketStyle = getKetBadgeStyle(activeTab === 'penyegelan'
+                ? (item as Penyegelan)['KET']
                 : (item as Pencabutan)['KET']
               );
-              
+
               return (
-                <div 
+                <div
                   key={actualIndex}
                   onClick={() => handleSelectItem(actualIndex)}
                   style={{
@@ -1578,16 +1675,16 @@ export function SPKManagement() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span style={{ 
-                      fontFamily: 'monospace', 
-                      fontSize: '0.875rem', 
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontSize: '0.875rem',
                       color: 'var(--text-secondary)',
                       background: 'var(--bg-secondary)',
                       padding: '0.25rem 0.5rem',
                       borderRadius: '0.25rem'
                     }}>
-                      {activeTab === 'penyegelan' 
-                        ? (item as Penyegelan)['NOMOR PELANGGAN'] 
+                      {activeTab === 'penyegelan'
+                        ? (item as Penyegelan)['NOMOR PELANGGAN']
                         : (item as Pencabutan)['NO SAMB']
                       }
                     </span>
@@ -1599,8 +1696,8 @@ export function SPKManagement() {
                       fontSize: '0.75rem',
                       fontWeight: 500
                     }}>
-                      {activeTab === 'penyegelan' 
-                        ? (item as Penyegelan)['KET'] 
+                      {activeTab === 'penyegelan'
+                        ? (item as Penyegelan)['KET']
                         : (item as Pencabutan)['KET']
                       }
                     </span>
@@ -1615,23 +1712,23 @@ export function SPKManagement() {
                       {(item as Pencabutan)['ALAMAT']}
                     </div>
                   )}
-                  <div style={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
                     alignItems: 'center',
                     marginTop: 'auto',
                     paddingTop: '0.75rem',
                     borderTop: '1px solid var(--border-color)'
                   }}>
                     <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                      {activeTab === 'penyegelan' 
+                      {activeTab === 'penyegelan'
                         ? `${(item as Penyegelan)['JUMLAH BLN']} bulan`
                         : `${(item as Pencabutan)['TOTAL TUNGGAKAN']} tunggakan`
                       }
                     </span>
                     <span style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                      {formatCurrency(activeTab === 'penyegelan' 
-                        ? (item as Penyegelan)['JUMLAH'] 
+                      {formatCurrency(activeTab === 'penyegelan'
+                        ? (item as Penyegelan)['JUMLAH']
                         : (item as Pencabutan)['JUMLAH TUNGGAKAN (Rp)']
                       )}
                     </span>
@@ -1644,10 +1741,10 @@ export function SPKManagement() {
 
         {/* Pagination */}
         {!loading && (paginatedData.length > 0 || paginatedInputData.length > 0) && (
-          <div style={{ 
-            display: 'flex', 
-            justifyContent: 'center', 
-            alignItems: 'center', 
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
             gap: '0.5rem',
             padding: '1rem',
             borderTop: '1px solid var(--border-color)'
@@ -1666,7 +1763,7 @@ export function SPKManagement() {
             >
               <ChevronLeft size={18} />
             </button>
-            
+
             {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
               let pageNum;
               if (totalPages <= 5) {
@@ -1678,7 +1775,7 @@ export function SPKManagement() {
               } else {
                 pageNum = currentPage - 2 + i;
               }
-              
+
               return (
                 <button
                   key={pageNum}
@@ -1697,7 +1794,7 @@ export function SPKManagement() {
                 </button>
               );
             })}
-            
+
             <button
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
@@ -1722,22 +1819,22 @@ export function SPKManagement() {
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
               <h3 style={{ margin: 0, fontSize: '1.25rem' }}>Konfirmasi Generate SPK</h3>
-              <button 
+              <button
                 onClick={() => setShowConfirmModal(false)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}
               >
                 <X size={24} />
               </button>
             </div>
-            
+
             <div style={{ marginBottom: '1.5rem' }}>
               <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                 Anda akan generate SPK untuk {selectedItems.size} item {activeTab === 'penyegelan' ? 'penyegelan' : 'pencabutan'}:
               </p>
-              
-              <div style={{ 
-                background: 'var(--bg-secondary)', 
-                padding: '1rem', 
+
+              <div style={{
+                background: 'var(--bg-secondary)',
+                padding: '1rem',
                 borderRadius: '0.5rem',
                 marginBottom: '1rem'
               }}>
@@ -1750,11 +1847,11 @@ export function SPKManagement() {
                   <strong style={{ color: 'var(--primary)' }}>{formatCurrency(selectedTotalAmount)}</strong>
                 </div>
               </div>
-              
+
               <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '0.375rem' }}>
                 {selectedItemsData.slice(0, 5).map((item, idx) => (
-                  <div key={idx} style={{ 
-                    padding: '0.5rem 0.75rem', 
+                  <div key={idx} style={{
+                    padding: '0.5rem 0.75rem',
                     borderBottom: '1px solid var(--border-color)',
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -1762,8 +1859,8 @@ export function SPKManagement() {
                   }}>
                     <span>{item['NAMA']}</span>
                     <span style={{ color: 'var(--text-secondary)' }}>
-                      {formatCurrency(activeTab === 'penyegelan' 
-                        ? (item as Penyegelan)['JUMLAH'] 
+                      {formatCurrency(activeTab === 'penyegelan'
+                        ? (item as Penyegelan)['JUMLAH']
                         : (item as Pencabutan)['JUMLAH TUNGGAKAN (Rp)']
                       )}
                     </span>
@@ -1776,7 +1873,7 @@ export function SPKManagement() {
                 )}
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
               <button
                 onClick={() => setShowConfirmModal(false)}

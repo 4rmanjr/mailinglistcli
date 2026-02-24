@@ -219,4 +219,14 @@ export const api = {
       method: 'DELETE',
     });
   },
+
+  async finalizeSPK(type: 'penyegelan' | 'pencabutan', ids: number[]): Promise<{ finalized: boolean; count: number }> {
+    const response = await fetch(`${API_BASE_URL}/finalize-spk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type, ids }),
+    });
+    const result = await handleResponse<{ finalized: boolean; count: number }>(response);
+    return result.data!;
+  },
 };
